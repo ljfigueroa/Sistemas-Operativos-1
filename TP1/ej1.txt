@@ -1,0 +1,10 @@
+﻿
+.Entraron 200000 visitantes. 
+
+.Ejecutar el programa con 2 hilos no devuelve siempre el resultado correcto. En cambio con un solo hilo el resultado es correcto.
+
+.El resultado es incorrecto porque cuando hay mas de un thread, cada uno suma uno a la misma variable visitantes pero esta variable esta en una región critica y esta "pisada por la función mas uno" lo que produce la perdida de alguna de las sumas cuando ambas funciones de suma uno están en la región critica.
+
+.El menos valor posible que podría imprimir el programa seria 100000 dividido la cantidad de threads bajo la circunstancia de que cada vez que una función mas uno realiza la suma otra pise su resultado y en la siguiente iteración la función que fue “pisada” pise el resultado de la suma de la la otra.
+
+.El programa parece que funciona bien porque como N_VISITANTES es tan pequeña, la iteración en molinete se produce muy rápido y no se llega a producir una perdida de valores de la variable en la región critica pero existe la posibilidad de que suceda.

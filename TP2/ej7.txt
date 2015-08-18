@@ -1,0 +1,4 @@
+﻿.) No es correcto, pues un escritor puede cambiar en cualquier momento el arreglo que un lector 
+   pueda estar leyendo. La solución fue implementada en "lectesc.c" esta solución no deja esperando
+   eternamente a un escritor pero tiene una preferencia hacia dejar que los escritores escriban una
+   mayor cantidad de veces de los que los lectores entran para leer.

@@ -1,0 +1,63 @@
+#define N_SEM 128
+#include <assert.h>
+typedef struct 
+{
+  int counter;
+  Cilk_lockvar mutex;
+  Cilk_lockvar queue[N_SEM];
+  int from,to;
+} Semaphore;
+
+Semaphore *SemaphoreCreate(int value)
+{ 
+  int i;
+  Semaphore *s=(Semaphore*)malloc(sizeof(Semaphore));
+  for (i=0;i<N_SEM;i++)
+  {
+    Cilk_lock_init(s->queue[i]);
+    Cilk_lock(s->queue[i]);
+  }
+  s->counter=value;
+  Cilk_lock_init(s->mutex);
+  s->from=0;
+  s->to=0;
+  return s;
+}
+
+void SemaphoreDestroy(Semaphore *s)
+{
+  assert(s->from==s->to);
+  free(s);
+}
+
+void SemaphoreP(Semaphore *s)
+{
+  Cilk_lock(s->mutex);
+  if (s->counter>0)
+  {
+    s->counter--;
+  } else {
+    int t=s->to;
+    s->to=(s->to+1) % N_SEM;
+    assert(s->to!=s->from);
+    s->counter--;
+    Cilk_unlock(s->mutex);
+    Cilk_lock(s->queue[t]);
+    return;
+  }
+  Cilk_unlock(s->mutex);
+}
+
+void SemaphoreV(Semaphore *s)
+{
+  Cilk_lock(s->mutex);
+  s->counter++;
+  if (s->to!=s->from)
+  {
+    Cilk_unlock(s->queue[s->from]);
+    s->from=(s->from+1) % N_SEM;
+  }
+  Cilk_unlock(s->mutex);
+}
+
+

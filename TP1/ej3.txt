@@ -1,0 +1,4 @@
+﻿.) Con 5 hilos funciona por el mismo motivo que antes (explicado en ej2.txt), cada spawn se ejecuta en un hilo diferente y cuando termina de usar los recursos los suelta. Solo cambia el orden en que comen los filósofos.
+Con 4 o menos hilos no funciona porque no hay suficientes threads para ejecutar los spawns y como nunca terminan porque tienen un for infinito nunca sueltan los hilos para que los siguientes spawn se ejecuten.
+
+.) Funciona bien siempre porque evitamos que se produzca el deadlock en el que un filosofo se quede esperando tener ambos tenedores, ahora usando semáforos de Dijkstra hacemos que tome ambos tenedores y luego los suelte sin que otro filosofo los pueda tomar en ese momento, quedando libres al terminar de comer para que otro filosofo los pueda usar.

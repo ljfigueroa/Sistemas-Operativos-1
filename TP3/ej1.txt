@@ -1,0 +1,14 @@
+.) match_test()
+  {A,B} = {5,4} es valido pues 5 se asigna a A y 4 a B.
+  {A,A} = {5,4} no es valido pues se trata de asignar a la variable A dos valores distintos y solo se puede asignar una sola vez un valor a una variable.
+  {B,A} = {4,5} es valido pues 4 se asigna a B y 5 a A.
+  {A,A} = {5,5} es valido pues a A se le asigna ambas veces el mismo numero.
+
+.)
+  helloworld == 'helloworld' es verdadero pues ambos son atomos.
+  "helloworld" == 'helloworld'es falso pues "helloworld" es una string pero 'helloworld' es un atomo.
+  helloworld == "helloworld" es falso porque helloworld es un atomo pero "helloworld" es un strig.
+  [$h,$e,$l,$l,$o,$w,$o,$r,$l,$d] == "helloworld" es verdadero pues [$h,$e,$l,$l,$o,$w,$o,$r,$l,$d] es una lista de caracteres y la string "helloworld" es una lista de caracteres.
+  [104,101,108,108,111,119,111,114,108,100] == helloworld es falso pues helloworld es un atomo y esta comparado con una lista.
+  [104,101,108,108,111,119,111,114,108,100] == 'helloworld' es falso pues 'helloworld' es un atomo y esta comparado con una lista.
+  [104,101,108,108,111,119,111,114,108,100] == "helloworld"] es verdadero pues los caracteres en Erlang son representados como enteros, entoces una lista de enteros puede representar una string en este caso coinside con "helloworld".

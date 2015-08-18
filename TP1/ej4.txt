@@ -1,0 +1,3 @@
+﻿.) Ejecutarlo con mas procesos no siempre mejora la performance por el echo que con cada llamada recursiva se crean dos nuevos threads y como el arreglo es muy grande se van a abrir muchos thereads haciendo lenta la ejecución.
+
+.) No realizando el quicksort paralelo en arreglos de tamaño menos o igual a diez  y en cambio ordenarlos de manera secuencial se noto una mejora considerable en la performance de quicksort. 

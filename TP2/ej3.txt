@@ -1,0 +1,15 @@
+﻿.) Tabla con tiempos aproximados de ejecución en secuencia y en paralelo.
+
+Numero primos  tiempo-secuencial  tiempo-paralelo
+
+74553239       0.664720           0.187389
+434543257      3.816427           1.060131
+2342342347     20.830158          5.929527
+
+Numero no primos  tiempo-secuencial  tiempo-paralelo
+1000000           0.000001           0.005454
+
+
+.) No se necesita sincronizar porque es valor que siempre se escribe es cero.
+.) Si un hilo detecta que no es primo, no tiene forma de avisar a los otros threads.
+   Una implementación que soluciona esto es "primo-paralelo-optimo.c".

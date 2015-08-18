@@ -1,0 +1,8 @@
+﻿.) La implementación con pthread de fibonacci es mas lenta que la versión de cilk porque crea muchos 
+   thread y consume muchos mas recursos del sistema como memoria ram, a demás funciona para valores 
+   mas chicos que la implementación de cilk, probablemente porque al crear tantos thread se quede 
+   sin lugar en el stack.
+
+.) Una forma de mejorar la versión posix, es limitar la cantidad de threads que se lanzan y a demás 
+   no calcular de manera paralela fibonacci para valores pequeños en los cuales la versión secuencial
+   es mas barata de ejecutar. Ver "fib_posix_mejorada.c".

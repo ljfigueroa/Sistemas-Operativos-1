@@ -1,0 +1,5 @@
+﻿.) No es correcta la implementación. Funciona con cinco hilos pero no con menos.
+.) Cuando lo ejecutamos con cuatro o menos hilos, la implementación de cilk no permite que se ejecuten los demás spawns hasta que se libere alguno de los hilos de su actual ejecución, pero como cada uno de ellos esta corriendo un for infinito que nunca van a terminar.
+.) Agregar un segundo hace que los los cinco hilos tomen el tenedor de la derecha y al querer tomar después de un segundo el tenedor de la derecha ya tiene un lock echo por otro filosofo y queda esperando que se libere el recurso, al mismo tiempo produciendo así un deadlock. 
+
+

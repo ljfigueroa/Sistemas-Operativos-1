@@ -1,0 +1,8 @@
+﻿.) El resultado es correcto, porque usando pragma omp critical indico que la variable
+   visitante es una región critica.
+
+.) La solución no funciona siempre porque asume que los cambios en el arreglo entering 
+   son visibles inmediatamente de manera global, pero eso no es así porque cada cambio 
+   que se produce en la cache de alguno de los core del procesador no se enviá de manera 
+   inmediata a la memoria, lo que puede hacer que cuando indico que estoy entrando no se 
+   enteren los otros threads.

@@ -1,0 +1,11 @@
+﻿.) Para matrices chicas el algoritmo secuencial y paralelo no tienen grandes diferencias aunque
+   el algoritmo paralelo parece ser mas rápido. (Medición realizada con la función time provista
+   por GNU-Linux).
+
+.) Si se puede mejorar la versión paralela aprovechando la propiedad que en los arreglos es mas 
+   rápido. acceder a memoria continua. Luego si cambiamos el orden en que primero recorremos C través 
+   de la fila k y todas las columnas con el for que tiene a i como parámetro arreglo obtenemos un 
+   recorrido mas eficiente que el original.
+
+.) Una ventaja que se puede obtener es que ambas matrices se pueden recorrer por renglón, así
+   mejorando aun mas la velocidad en que se accede a los datos. 
