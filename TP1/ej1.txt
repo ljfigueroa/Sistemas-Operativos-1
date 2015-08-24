@@ -1,5 +1,5 @@
 ﻿
-.Entraron 200000 visitantes. 
+.Entraron 200000 visitantes.
 
 .Ejecutar el programa con 2 hilos no devuelve siempre el resultado correcto. En cambio con un solo hilo el resultado es correcto.
 
