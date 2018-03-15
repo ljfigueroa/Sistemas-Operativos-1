@@ -3,11 +3,13 @@
 -compile(export_all).
 
 start() ->
-    Port = 8005,
+    Port = 8000 + random:uniform(100),
     server:init([Port]),
-    timer:sleep(1000),
-    io:format("conecting to psocket\n"),
+    io:format("5 - conecting to psocket\n"),
+						%timer:sleep(3000),
     {ok, Sock} = gen_tcp:connect("localhost", Port, [binary, {packet, 0}]),
-    ok = gen_tcp:send(Sock,"CON lauro").
-
-
+    io:format("Sending data... CON lauro\n"),
+    ok = gen_tcp:send(Sock,"    CON     lauro       "),
+    ok = gen_tcp:close(Sock),    
+    timer:sleep(3000),
+    exit(kill).
