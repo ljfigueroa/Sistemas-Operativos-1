@@ -1,65 +1,178 @@
 -module(server).
--import(string,[left/3, trim/1]). 
--compile(export_all).   
-
-test(String) ->
-    Str1 = "            hello",
-    io:fwrite("~p~n", [string:trim(Str1)]),
-    Str2 = left(Str1,10,$.), 
-    io:fwrite("~p~n",[Str2]).
+-import(string, [left/3, trim/1]).
+-import(lists, [member/2]).
+-import(pbalance, [get_server/1]).
+-import(games,[add/2, get/2]). 
+-compile(export_all).
 
 init(Ports) ->
     io:format("1 - spawn dispatcher\n"),
+    register(names, spawn(?MODULE, users_loop, [[]])),
+    register(pb, spawn(?MODULE, pbalance, [])),
+    register(pgames, spawn(games, games, [[]])),
+    %% register(provider, spawn(?MODULE, provider, [])),
+    %% register(pst, spawn(?MODULE, pstat, [])),
     spawn(?MODULE, dispatcher, [Ports]).
 
-dispatcher(Ports)->
-    [Port| _] = Ports,
+dispatcher(Ports) ->
+    [Port | _] = Ports,
     io:format("2 - listen to port\n"),
-    {ok,ListenSock} = gen_tcp:listen(Port,[{active,false}]),
+    {ok, ListenSock} = gen_tcp:listen(Port, [{active, false}]),
     io:format("3 - Started listening to port\n"),
     loop_dispatcher(ListenSock).
 
 
-loop_dispatcher(ListenSock)->
+loop_dispatcher(ListenSock) ->
     io:format("4 - Esperando una conexion \n"),
-    {ok,Sock} = gen_tcp:accept(ListenSock),
+    {ok, Sock} = gen_tcp:accept(ListenSock),
     io:format("6 - Nueva coneccion\n"),
-    ok = inet:setopts(Sock,[{active,true}]),
     Pid = spawn(?MODULE, psocket, [Sock]),
     io:format("7 - spawn psocket\n"),
-    ok = gen_tcp:controlling_process(Sock,Pid),
-    Pid!ok,
+    ok = gen_tcp:controlling_process(Sock, Pid),
+    ok = inet:setopts(Sock, [{active, true}]),
+    Pid ! ok,
     loop_dispatcher(ListenSock).
 
-
-psocket(Sock)->
+psocket(Sock) ->
     receive ok -> ok end,
-    io:format("IIIIIIIIIIIIIIIIIIIIIIIIIII \n"),
+    io:format("IN PSOCKET :D\n"),
     receive
-        %% Connect from a client 
-	{tcp,Socket,Cmd} -> 
-	    case isConnectPcomand(Cmd) of
-		{ok, UserName} ->
-		    io:fwrite("New user:<~p>~n",[UserName]);
-		{error, Msg} -> Msg			    
-	    end,
-	    Respuesta = pcomando(Cmd),
-	    gen_tcp:send(Socket,Respuesta);
-	_ -> ok
-
-    end,
-    psocket(Sock).
-
-isValidName(String) -> ok.
-
-isConnectPcomand(String) -> 
-    Ss = string:strip(String),
-    case string:str(Ss, "CON") of
-	1 -> Sss = string:strip(string:sub_string(Ss,4)),
-	     {ok, Sss};
-	_ -> {error, "Error > no es el comando CON"}
+    %% Connect from a client
+        {tcp, Sock, Cmd} ->
+            case isValidConnectPcomand(Cmd) of
+                {ok, UserName} ->
+                    io:fwrite("New user:<~p>~n", [UserName]),
+                    GetUsers = get_users(),
+                    io:fwrite("user list:<~p>~n", [GetUsers]),
+                    IsNameAvailable = isNameAvailable(GetUsers, UserName),
+                    if
+                        IsNameAvailable ->
+                            %% Ask pbalace
+                            {ok, Server} = pbalance:get_server(pb),
+                            io:fwrite("Pbalance dijo <~p>~n", [Server]),
+                            psocket_loop(Sock);
+                        true ->
+                            io:format("Name already in use"),
+                            gen_tcp:send(Sock, "Name already in use"),
+			    self() ! ok,
+			    psocket(Sock)
+                    end;
+                {error, Msg} ->
+                    io:fwrite("~p~n", [Msg]),
+                    gen_tcp:send(Sock, Msg),
+		    self() ! ok,
+		    psocket(Sock)
+            end;
+        _ -> ok,
+	     self() ! ok,
+	     psocket(Sock)
     end.
 
-pcomando(Cmd)->
-    io:format("EJECUTANDO PCOMANDO\n"),
-    "ERROR no implementado".
+psocket_loop(Sock) ->
+    io:fwrite("psocket_loop ~n"),
+    receive
+	{tcp, Sock, Cmd} -> IsValidPcommand = isValidPcommand(Cmd),
+			      if
+				  IsValidPcommand -> 
+				      spawn_pcommand(Sock, Cmd);
+				  true -> 
+				      io:fwrite("VALIDN'T ~n"),
+				      gen_tcp:send(Sock, "Invalid pcommand")
+			      end;
+	_ -> io:fwrite("psocket_loop no entiende lo que recivio.~n")
+    after
+	1000 -> io:fwrite("@@@@@@@@@@@@@@@ psocket_loop no recivio nada ~n"),
+		exit(kill)
+    end,			       
+    psocket_loop(Sock).
+
+pbalance() ->
+    io:fwrite("Dentro del proceso pbalance ~n"),
+    receive
+        {req, Pid} -> Pid ! {ok, "SERVER ;)"}
+    end,
+    pbalance().
+
+pstat() ->
+    receive
+    after
+        3000 ->
+            {ok, Servers} = server:get_servers(),
+            {Total_Reductions, _} = erlang:statictics(reductions),
+            Fun = (fun(S) -> {server:notify(S, Total_Reductions)} end),
+            list:map(Fun, Servers),
+            pstat()
+    end.
+
+users(Names) ->
+    %% 1- retrieve all the other user names
+    %% TODO
+    %% 2- init loop request service
+    users_loop(Names).
+
+get_users() ->
+    names ! {get, self()},
+    io:format("getting users\n"),
+    receive
+        {ok, Names} -> Names
+    end.
+
+users_loop(Names) ->
+    receive
+        {isAvailable, UserName} -> {ok, isNameAvailable(Names, UserName)};
+        {add, UserName} -> case isNameAvailable(Names, UserName) of
+                               true -> {ok, UserName},
+				       users([UserName | Names]);
+                               false -> {error, UserName}
+                           end;
+        {get, Pid} ->
+            io:format("getting users list\n"),
+            Pid ! {ok, Names};
+        {remove, UserName} -> {ok, UserName}
+    end,
+    users_loop(Names).
+
+isNameAvailable(List, String) -> not(lists:member(String, List)).
+
+isValidConnectPcomand(String) ->
+    Ss = string:strip(String),
+    case string:str(Ss, "CON") of
+        1 -> UserName = string:strip(string:sub_string(Ss, 4)),
+            {ok, UserName};
+        _ -> {error, "Error > no es el comando CON"}
+    end.
+
+isValidPcommand(String) ->
+    ValidPcommands = ["LSG", "NEW", "ACC", "PLA", "OBS", "LEA", "BYE"],
+    lists:member(String, ValidPcommands).
+
+
+spawn_pcommand(Server, Cmd) ->
+    io:format("NEW PCOMAND\n"),
+    spawn(?MODULE, pcomando, [Server, Cmd]).
+
+pcomando(Server, Cmd) ->
+    %% io:fwrite("##  EJECUTANDO PCOMANDO =>  <~p>~n",[Cmd]),
+    [Command | Arguments] = string:tokens(Cmd, " "),
+    case Command of 
+	"LSG" ->
+	    {game, ID, STATES} = games:get(whereis(pgames),123),
+	    io:fwrite("Game <~p> for <~p> ~n", [ID, STATES]),
+	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	"NEW" ->
+	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	"ACC" ->
+    	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	"PLA" ->
+	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	"OBS" ->
+	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	"LEA" -> 
+	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	"BYE" ->
+	    gen_tcp:send(Server,string:concat("Exec command > ", Command))
+    end.
+
+
+pcomando(lgs) ->
+    ok.
