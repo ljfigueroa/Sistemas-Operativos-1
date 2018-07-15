@@ -1,2 +1,7 @@
 *.beam
 *.dump
+*#*
+TAGS
+exec.sh
+*~
+tp_final_2016.iml
