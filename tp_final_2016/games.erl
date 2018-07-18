@@ -1,8 +1,7 @@
 -module(games).
 -compile(export_all).
 
--record(game, {id,
-	       state=[]}).
+-record(game, {id, state, p1, p2, obs}).
 
 games(Game_list) ->
     receive
@@ -18,8 +17,7 @@ games(Game_list) ->
 get(Pid, Game_id) ->
     Pid ! {self(), {get, Game_id}},
     receive
-	{Pid, Game} -> 
-	    Game
+	{Pid, Game} -> Game
     end.
 
 add(Pid, Game) ->

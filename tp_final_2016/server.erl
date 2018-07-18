@@ -16,18 +16,13 @@ init(Ports) ->
 
 dispatcher(Ports) ->
     [Port | _] = Ports,
-    io:format("2 - listen to port\n"),
     {ok, ListenSock} = gen_tcp:listen(Port, [{active, false}]),
-    io:format("3 - Started listening to port\n"),
     loop_dispatcher(ListenSock).
 
 
 loop_dispatcher(ListenSock) ->
-    io:format("4 - Esperando una conexion \n"),
     {ok, Sock} = gen_tcp:accept(ListenSock),
-    io:format("6 - Nueva coneccion\n"),
     Pid = spawn(?MODULE, psocket, [Sock]),
-    io:format("7 - spawn psocket\n"),
     ok = gen_tcp:controlling_process(Sock, Pid),
     ok = inet:setopts(Sock, [{active, true}]),
     Pid ! ok,
@@ -35,9 +30,8 @@ loop_dispatcher(ListenSock) ->
 
 psocket(Sock) ->
     receive ok -> ok end,
-    io:format("IN PSOCKET :D\n"),
     receive
-    %% Connect from a client
+	%% Connect from a client
         {tcp, Sock, Cmd} ->
             case isValidConnectPcomand(Cmd) of
                 {ok, UserName} ->
@@ -156,7 +150,7 @@ pcomando(Server, Cmd) ->
     [Command | Arguments] = string:tokens(Cmd, " "),
     case Command of 
 	"LSG" ->
-	    {game, ID, STATES} = games:get(whereis(pgames),123),
+	    {game, ID, STATES, _, _, _} = games:get(whereis(pgames),123),
 	    io:fwrite("Game <~p> for <~p> ~n", [ID, STATES]),
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"NEW" ->
