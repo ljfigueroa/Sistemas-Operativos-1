@@ -2,7 +2,8 @@
 -import(string, [left/3, trim/1]).
 -import(lists, [member/2]).
 -import(pbalance, [get_server/1]).
--import(games,[add/2, get/2]). 
+-import(games,[add/2, get/2]).
+-include("game_interface.hrl").
 -compile(export_all).
 
 init(Ports) ->
@@ -150,8 +151,9 @@ pcomando(Server, Cmd) ->
     [Command | Arguments] = string:tokens(Cmd, " "),
     case Command of 
 	"LSG" ->
-	    {game, ID, STATES, _, _, _} = games:get(whereis(pgames),123),
-	    io:fwrite("Game <~p> for <~p> ~n", [ID, STATES]),
+	    Game = games:get(whereis(pgames),123),
+	    io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
+
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"NEW" ->
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
