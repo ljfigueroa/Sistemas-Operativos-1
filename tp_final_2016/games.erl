@@ -1,7 +1,7 @@
 -module(games).
 -compile(export_all).
+-include("game_interface.hrl").
 
--record(game, {id, state, p1, p2, obs}).
 
 games(Game_list) ->
     receive
