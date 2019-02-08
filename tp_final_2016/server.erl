@@ -2,13 +2,14 @@
 -import(string, [left/3, trim/1]).
 -import(lists, [member/2]).
 -import(pbalance, [get_server/1]).
--import(games,[add/2, get/2]).
+-import(user, [user/0]).
+%-import(games,[add/2, get/2]).
 -include("game_interface.hrl").
 -compile(export_all).
 
 init(Ports) ->
     io:format("1 - spawn dispatcher\n"),
-    register(names, spawn(?MODULE, users_loop, [[]])),
+    register(pusers, spawn(user, user, [])),
     register(pb, spawn(?MODULE, pbalance, [])),
     register(pgames, spawn(games, games, [[]])),
     %% register(provider, spawn(?MODULE, provider, [])),
@@ -36,22 +37,8 @@ psocket(Sock) ->
         {tcp, Sock, Cmd} ->
             case isValidConnectPcomand(Cmd) of
                 {ok, UserName} ->
-                    io:fwrite("New user:<~p>~n", [UserName]),
-                    GetUsers = get_users(),
-                    io:fwrite("user list:<~p>~n", [GetUsers]),
-                    IsNameAvailable = isNameAvailable(GetUsers, UserName),
-                    if
-                        IsNameAvailable ->
-                            %% Ask pbalace
-                            {ok, Server} = pbalance:get_server(pb),
-                            io:fwrite("Pbalance dijo <~p>~n", [Server]),
-                            psocket_loop(Sock);
-                        true ->
-                            io:format("Name already in use"),
-                            gen_tcp:send(Sock, "Name already in use"),
-			    self() ! ok,
-			    psocket(Sock)
-                    end;
+		    User = create_user(UserName),
+		    pcomand_connect(Sock, User);
                 {error, Msg} ->
                     io:fwrite("~p~n", [Msg]),
                     gen_tcp:send(Sock, Msg),
@@ -67,13 +54,13 @@ psocket_loop(Sock) ->
     io:fwrite("psocket_loop ~n"),
     receive
 	{tcp, Sock, Cmd} -> IsValidPcommand = isValidPcommand(Cmd),
-			      if
-				  IsValidPcommand -> 
-				      spawn_pcommand(Sock, Cmd);
-				  true -> 
-				      io:fwrite("VALIDN'T ~n"),
-				      gen_tcp:send(Sock, "Invalid pcommand")
-			      end;
+			    if
+				IsValidPcommand -> 
+				    spawn_pcommand(Sock, Cmd);
+				true -> 
+				    io:fwrite("VALIDN'T ~n"),
+				    gen_tcp:send(Sock, "Invalid pcommand")
+			    end;
 	_ -> io:fwrite("psocket_loop no entiende lo que recivio.~n")
     after
 	1000 -> io:fwrite("@@@@@@@@@@@@@@@ psocket_loop no recivio nada ~n"),
@@ -133,7 +120,7 @@ isValidConnectPcomand(String) ->
     Ss = string:strip(String),
     case string:str(Ss, "CON") of
         1 -> UserName = string:strip(string:sub_string(Ss, 4)),
-            {ok, UserName};
+	     {ok, UserName};
         _ -> {error, "Error > no es el comando CON"}
     end.
 
@@ -172,3 +159,27 @@ pcomando(Server, Cmd) ->
 
 pcomando(lgs) ->
     ok.
+
+pcomand_connect(Sock, ok) ->
+    {ok, Server} = pbalance:get_server(pb),
+    io:fwrite("Pbalance dijo <~p>~n", [Server]),
+    psocket_loop(Sock);
+pcomand_connect(Sock, user_already_exist) ->
+    io:format("Name already in use~n"),
+    gen_tcp:send(Sock, "Name already in use"),
+    self() ! ok,
+    psocket(Sock);
+pcomand_connect(_, _) ->
+    io:format("pcomand_connect with wrong arguments~n").
+
+create_user(Name) ->
+    User = user:get(pusers, Name),
+    case User of
+	not_found ->
+	    ok = user:add(pusers, Name),
+	    io:fwrite("se agrego correctamente el usuario ~n"), 
+	    ok;
+	_ ->
+	    io:format("Name already in use"),
+	    user_already_exist
+    end.

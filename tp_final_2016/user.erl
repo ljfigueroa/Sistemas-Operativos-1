@@ -1,10 +1,10 @@
 -module(user).
--compile(export_all).
 -include("user_interface.hrl").
-
+-compile(export_all).
 
 user() ->
-    Map = #{},
+    Map = #{"Laura" => not_in_game},
+    %% Map = #{},
     user_loop(Map).
 
 user_loop(Users) ->
@@ -12,9 +12,9 @@ user_loop(Users) ->
 	{From, {add, User_name}} ->
 	    From ! {self(), ok},
 	    User = #user{name = User_name},
-	    user_loop([User | Users]);
+	    user_loop(maps:put(User_name, not_found, Users));
 	{From, {get, User_name}} ->
-	    case map:find(User_name) of
+	    case maps:find(User_name, Users) of
 		{ok, Value} ->
 		    From ! {self(), {ok, Value}};
 		error ->
@@ -27,11 +27,11 @@ get(Pid, User_name) ->
     io:fwrite("USER GET ~n"),
     Pid ! {self(), {get, User_name}},
     receive
-	{Pid, User} -> User
+	{AnotherPid, User} -> self() ! User
     end.
 
 add(Pid, User_name) ->
     Pid ! {self(), {add, User_name}},
     receive
-	{Pid, ok} -> ok
+	{_, ok} -> ok
     end.			 
