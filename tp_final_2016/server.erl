@@ -86,33 +86,6 @@ pstat() ->
             pstat()
     end.
 
-users(Names) ->
-    %% 1- retrieve all the other user names
-    %% TODO
-    %% 2- init loop request service
-    users_loop(Names).
-
-get_users() ->
-    names ! {get, self()},
-    io:format("getting users\n"),
-    receive
-        {ok, Names} -> Names
-    end.
-
-users_loop(Names) ->
-    receive
-        {isAvailable, UserName} -> {ok, isNameAvailable(Names, UserName)};
-        {add, UserName} -> case isNameAvailable(Names, UserName) of
-                               true -> {ok, UserName},
-				       users([UserName | Names]);
-                               false -> {error, UserName}
-                           end;
-        {get, Pid} ->
-            io:format("getting users list\n"),
-            Pid ! {ok, Names};
-        {remove, UserName} -> {ok, UserName}
-    end,
-    users_loop(Names).
 
 isNameAvailable(List, String) -> not(lists:member(String, List)).
 
@@ -175,11 +148,15 @@ pcomand_connect(_, _) ->
 create_user(Name) ->
     User = user:get(pusers, Name),
     case User of
-	not_found ->
-	    ok = user:add(pusers, Name),
+	user_not_found ->
+	    io:fwrite("1 ~n"),
+	    user_added_ok = user:add(pusers, Name),
+	    io:fwrite("2 ~n"),
+	    User2 = user:get(pusers, Name),
+	    io:fwrite("aaaaa ~p ~n", [User2]),
 	    io:fwrite("se agrego correctamente el usuario ~n"), 
 	    ok;
 	_ ->
-	    io:format("Name already in use"),
+	    io:format("Name already in use ~n"),
 	    user_already_exist
     end.

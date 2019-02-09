@@ -10,7 +10,7 @@ user() ->
 user_loop(Users) ->
     receive
 	{From, {add, User_name}} ->
-	    From ! {self(), ok},
+	    From ! {self(), user_added},
 	    User = #user{name = User_name},
 	    user_loop(maps:put(User_name, not_found, Users));
 	{From, {get, User_name}} ->
@@ -18,7 +18,7 @@ user_loop(Users) ->
 		{ok, Value} ->
 		    From ! {self(), {ok, Value}};
 		error ->
-		    From ! {self(), not_found}
+		    From ! {self(), user_not_found}
 	    end,
 	    user_loop(Users)
     end.
@@ -33,5 +33,5 @@ get(Pid, User_name) ->
 add(Pid, User_name) ->
     Pid ! {self(), {add, User_name}},
     receive
-	{_, ok} -> ok
+	{_, user_added} -> user_added_ok
     end.			 
