@@ -133,7 +133,7 @@ pcomando(Server, Cmd) ->
 pcomando(lgs) ->
     ok.
 
-pcomand_connect(Sock, ok) ->
+pcomand_connect(Sock, user_added_ok) ->
     {ok, Server} = pbalance:get_server(pb),
     io:fwrite("Pbalance dijo <~p>~n", [Server]),
     psocket_loop(Sock);
@@ -148,15 +148,6 @@ pcomand_connect(_, _) ->
 create_user(Name) ->
     User = user:get(pusers, Name),
     case User of
-	user_not_found ->
-	    io:fwrite("1 ~n"),
-	    user_added_ok = user:add(pusers, Name),
-	    io:fwrite("2 ~n"),
-	    User2 = user:get(pusers, Name),
-	    io:fwrite("aaaaa ~p ~n", [User2]),
-	    io:fwrite("se agrego correctamente el usuario ~n"), 
-	    ok;
-	_ ->
-	    io:format("Name already in use ~n"),
-	    user_already_exist
+	user_not_found -> user:add(pusers, Name);
+	_              -> user_already_exist
     end.

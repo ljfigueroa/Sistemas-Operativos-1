@@ -20,6 +20,10 @@ get(Pid, Game_id) ->
 	{Pid, Game} -> Game
     end.
 
+get_all(Pid) ->
+    ok.
+    
+
 add(Pid, Game) ->
     Pid ! {self(), {add, Game}},
     receive
