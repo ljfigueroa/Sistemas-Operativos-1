@@ -113,6 +113,7 @@ pcomando(Server, Cmd) ->
 	"LSG" ->
 	    Game = games:get(whereis(pgames),123),
 	    io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
+	    io:fwrite("games ~p ~n", [games:get_all(pgames)]),
 
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"NEW" ->

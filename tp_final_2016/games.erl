@@ -11,7 +11,10 @@ games(Game_list) ->
 	{From, {get, Game_id}} ->
 	    Game = #game{id=Game_id, state=[]},
 	    From ! {self(), Game},
-	    games(Game_list)
+	    games(Game_list);
+	{From, get_all_games} ->
+	    From ! {self(), Game_list}
+		
     end.
 
 get(Pid, Game_id) ->
@@ -21,8 +24,11 @@ get(Pid, Game_id) ->
     end.
 
 get_all(Pid) ->
-    ok.
-    
+    Pid ! {self(), get_all_games},
+    receive
+	{_, Games} -> Games
+			    
+    end.
 
 add(Pid, Game) ->
     Pid ! {self(), {add, Game}},
