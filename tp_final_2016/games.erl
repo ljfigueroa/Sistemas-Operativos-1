@@ -13,8 +13,8 @@ games(Game_list) ->
 	    From ! {self(), Game},
 	    games(Game_list);
 	{From, get_all_games} ->
-	    From ! {self(), Game_list}
-		
+	    From ! {self(), Game_list},		
+	    games(Game_list)
     end.
 
 get(Pid, Game_id) ->
