@@ -96,8 +96,8 @@ isNameAvailable(List, String) -> not(lists:member(String, List)).
 isValidConnectPcomand(String) ->
     Ss = string:strip(String),
     case string:str(Ss, "CON") of
-      1 -> UserName = string:strip(string:sub_string(Ss, 4)),
-      {ok, UserName};
+        1 -> UserName = string:strip(string:sub_string(Ss, 4)),
+        {ok, UserName};
         _ -> {error, "Error > no es el comando CON"}
     end.
 
