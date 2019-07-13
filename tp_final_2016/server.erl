@@ -117,11 +117,11 @@ pcomando(Server, Cmd) ->
 	    io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
 	    io:fwrite("games ~p ~n", [games:get_all(pgames)]),
 	    games:add(pgames, Game),
-         io:fwrite("games after add and before get_all ~p ~n", []),
+         io:fwrite("games after add and before get_all ~n", []),
 	    Response = games:get_all(pgames),
          io:fwrite("LGS response ~p ~n", [Response]),
-	    send_request(Server, Command, Args, Response);
-	    %% gen_tcp:send(Server,string:concat("Exec command > ", Command));
+	    %% send_request(Server, Command, Args, Response);
+	    gen_tcp:send(Server,string:concat("Exec command > ", "PUT ALL GAME LIST"));
 	"NEW" ->
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"ACC" ->
