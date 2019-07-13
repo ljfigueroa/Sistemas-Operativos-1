@@ -45,8 +45,7 @@ psocket(Sock) ->
 	     %% Connect from a client
         {tcp, Sock, Cmd} ->
             case isValidConnectPcomand(Cmd) of
-                {ok, UserName} -> User = create_user(UserName),
-                                  pcomand_connect(Sock, User);
+                {ok, UserName} -> pcomand_connect(Sock, create_user(UserName));
                 {error, Msg} ->   gen_tcp:send(Sock, Msg),
 		                          self() ! ok,
 		                          psocket(Sock)
@@ -57,7 +56,7 @@ psocket(Sock) ->
     end.
 
 psocket_loop(Sock) ->
-    io:fwrite("psocket_loop ~n"),
+    %% io:fwrite("psocket_loop ~n"),
     receive
         {tcp, Sock, Cmd} -> IsValidPcommand = isValidPcommand(Cmd),
                             if
@@ -66,13 +65,12 @@ psocket_loop(Sock) ->
                             end;
       _ -> println("psocket_loop no entiende lo que recivio.")
     after
-        1000 -> println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada"),
-		exit(kill)
+        1000 -> println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
+		%% exit(kill)
     end,
     psocket_loop(Sock).
 
 pbalance() ->
-    println("Dentro del proceso pbalance"),
     receive
         {req, Pid} -> Pid ! {ok, "SERVER ;)"}
     end,
@@ -106,7 +104,7 @@ isValidPcommand(String) ->
 
 
 spawn_pcommand(Server, Cmd) ->
-    io:format("NEW PCOMAND\n"),
+    %% io:format("NEW PCOMAND\n"),
     spawn(?MODULE, pcomando, [Server, Cmd]).
 
 pcomando(Server, Cmd) ->
@@ -119,7 +117,9 @@ pcomando(Server, Cmd) ->
 	    io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
 	    io:fwrite("games ~p ~n", [games:get_all(pgames)]),
 	    games:add(pgames, Game),
+         io:fwrite("games after add and before get_all ~p ~n", []),
 	    Response = games:get_all(pgames),
+         io:fwrite("LGS response ~p ~n", [Response]),
 	    send_request(Server, Command, Args, Response);
 	    %% gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"NEW" ->
@@ -141,12 +141,10 @@ pcomando(lgs) ->
     ok.
 
 pcomand_connect(Sock, user_added_ok) ->
-    {ok, Server} = pbalance:get_server(pb),
-    io:fwrite("Pbalance dijo <~p>~n", [Server]),
+    gen_tcp:send(Sock, "OK USER :D"),
     psocket_loop(Sock);
 pcomand_connect(Sock, user_already_exist) ->
-    io:format("Name already in use~n"),
-    gen_tcp:send(Sock, "Name already in use"),
+    gen_tcp:send(Sock, constants:get_string(user_already_exist)),
     self() ! ok,
     psocket(Sock);
 pcomand_connect(_, _) ->
@@ -164,7 +162,3 @@ send_request(Server, Command, Arguments, Response) ->
     Res = string:concat(Response),
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
-
-eval_pcommand(con, UserName) ->
-    User = create_user(UserName),
-    pcomand_connect(Sock, User).
