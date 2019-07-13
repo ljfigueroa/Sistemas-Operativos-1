@@ -3,6 +3,7 @@
 -import(lists, [member/2]).
 -import(pbalance, [get_server/1]).
 -import(user, [user/0]).
+-import(constants, [get_string/1]).
 %-import(games,[add/2, get/2]).
 -include("game_interface.hrl").
 -compile(export_all).
@@ -13,7 +14,6 @@ println(Msg) ->
 %%% @doc Initialize the server:
 %%% @param Ports. List of ports to be listended by the server.
 init(Ports) ->
-    println("1 - spawn dispatcher\n"),
     register(pusers, spawn(user, user, [])),
     register(pb, spawn(?MODULE, pbalance, [])),
     register(pgames, spawn(games, games, [[]])),
@@ -47,10 +47,9 @@ psocket(Sock) ->
             case isValidConnectPcomand(Cmd) of
                 {ok, UserName} -> User = create_user(UserName),
                                   pcomand_connect(Sock, User);
-                {error, Msg} ->   println(Msg),
-                                  gen_tcp:send(Sock, Msg),
-		                              self() ! ok,
-		                              psocket(Sock)
+                {error, Msg} ->   gen_tcp:send(Sock, Msg),
+		                          self() ! ok,
+		                          psocket(Sock)
             end;
         _ -> ok,
 	     self() ! ok,
@@ -98,7 +97,7 @@ isValidConnectPcomand(String) ->
     case string:str(Ss, "CON") of
         1 -> UserName = string:strip(string:sub_string(Ss, 4)),
         {ok, UserName};
-        _ -> {error, "Error > no es el comando CON"}
+        _ -> {error, constants:get_string(invalid_con_command)}
     end.
 
 isValidPcommand(String) ->
@@ -156,8 +155,8 @@ pcomand_connect(_, _) ->
 create_user(Name) ->
     User = user:get(pusers, Name),
     case User of
-	user_not_found -> user:add(pusers, Name);
-	_              -> user_already_exist
+        user_not_found -> user:add(pusers, Name);
+	    _              -> user_already_exist
     end.
 
 send_request(Server, Command, Arguments, Response) ->
@@ -165,3 +164,7 @@ send_request(Server, Command, Arguments, Response) ->
     Res = string:concat(Response),
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
+
+eval_pcommand(con, UserName) ->
+    User = create_user(UserName),
+    pcomand_connect(Sock, User).

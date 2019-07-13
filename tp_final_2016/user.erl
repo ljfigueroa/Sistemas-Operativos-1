@@ -15,11 +15,11 @@ user_loop(Users) ->
 	    user_loop(maps:put(User_name, not_in_game, Users));
 	{From, {get, User_name}} ->
 	    case maps:find(User_name, Users) of
-		{ok, Value} ->
-		    User = #user{name = User_name, game_id = Value},
-		    From ! {self(), {ok, User}};
-		error ->
-		    From ! {self(), user_not_found}
+            {ok, Value} ->
+                User = #user{name = User_name, game_id = Value},
+                From ! {self(), {ok, User}};
+    		error ->
+                From ! {self(), user_not_found}
 	    end,
 	    user_loop(Users)
     end.
@@ -34,4 +34,4 @@ add(Pid, User_name) ->
     Pid ! {self(), {add, User_name}},
     receive
 	{_, user_added} -> user_added_ok
-    end.			 
+    end.
