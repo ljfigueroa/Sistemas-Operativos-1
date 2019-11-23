@@ -17,7 +17,7 @@ start() ->
     ok = send(Sock,"BYE"),
     ok = gen_tcp:close(Sock),
     %%timer:sleep(5000),
-    exit(kill).
+    exit(normal).
 
 send(Sock, Msg) ->
     gen_tcp:send(Sock, Msg),
