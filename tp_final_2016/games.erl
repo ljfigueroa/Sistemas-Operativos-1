@@ -29,11 +29,11 @@ get(Pid, Game_id) ->
 get_all(Pid) ->
     Pid ! {self(), get_all_games},
     receive
-	{_, Games} -> Games
+	{Pid, Games} -> Games
     end.
 
 add(Pid, Game) ->
     Pid ! {self(), {add, Game}},
     receive
-	{_, ok} -> ok
+	{Pid, ok} -> ok
     end.
