@@ -1,2 +1,2 @@
 %% User state
--record(user, {name, game_id}).
+-record(user, {name, game}).
