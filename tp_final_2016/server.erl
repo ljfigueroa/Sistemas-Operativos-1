@@ -2,9 +2,9 @@
 -import(string, [left/3, trim/1]).
 -import(lists, [member/2]).
 -import(pbalance, [get_server/1]).
--import(user, [user/0]).
+-import(puser, [user/0]).
+-import(pgame, [add/2, get/2]).
 -import(constants, [get_string/1]).
-%-import(games,[add/2, get/2]).
 -include("game_interface.hrl").
 -compile(export_all).
 
@@ -14,9 +14,9 @@ println(Msg) ->
 %%% @doc Initialize the server:
 %%% @param Ports. List of ports to be listended by the server.
 init(Ports) ->
-    register(pusers, spawn(user, user, [])),
-    register(pb, spawn(?MODULE, pbalance, [])),
-    register(pgames, spawn(games, games, [[]])),
+    register(users, spawn(puser, puser, [])),
+    %% register(pb, spawn(?MODULE, pbalance, [])),
+    register(games, spawn(pgame, pgame, [])),
     %% register(provider, spawn(?MODULE, provider, [])),
     %% register(pst, spawn(?MODULE, pstat, [])),
     spawn(?MODULE, dispatcher, [Ports]).
@@ -42,10 +42,13 @@ loop_dispatcher(ListenSock) ->
 psocket(Sock) ->
     receive ok -> ok end,
     receive
-	     %% Connect from a client
+	%% Connect from a client
         {tcp, Sock, Cmd} ->
             case isValidConnectPcomand(Cmd) of
-                {ok, UserName} -> pcomand_connect(Sock, create_user(UserName));
+                {ok, UserName} -> 
+		    State = create_user(UserName),
+		    io:fwrite("Cration of user with state ~p\n", [State]),
+		    pcomand_connect(Sock, State);
                 {error, Msg} ->   gen_tcp:send(Sock, Msg),
 		                          self() ! ok,
 		                          psocket(Sock)
@@ -113,13 +116,13 @@ pcomando(Server, Cmd) ->
     [Command | Arguments] = string:tokens(Cmd, " "),
     case Command of
 	"LSG" ->
-	    Game = games:get(whereis(pgames),123),
-	    io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
-	    io:fwrite("games ~p ~n", [games:get_all(pgames)]),
-	    games:add(pgames, Game),
-         io:fwrite("games after add and before get_all ~n", []),
-	    Response = games:get_all(pgames),
-         io:fwrite("LGS response ~p ~n", [Response]),
+	    %% Game = games:get(whereis(pgames),123),
+	    %% io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
+	    %% io:fwrite("games ~p ~n", [games:get_all(pgames)]),
+	    %% games:add(pgames, Game),
+	    %% io:fwrite("games after add and before get_all ~n", []),
+	    %% Response = games:get_all(pgames),
+	    %% io:fwrite("LGS response ~p ~n", [Response]),
 	    %% send_request(Server, Command, Args, Response);
 	    gen_tcp:send(Server,string:concat("Exec command > ", "PUT ALL GAME LIST"));
 	"NEW" ->
@@ -151,10 +154,10 @@ pcomand_connect(_, _) ->
     io:format("pcomand_connect with wrong arguments~n").
 
 create_user(Name) ->
-    User = user:get(pusers, Name),
+    User = puser:get(users, Name),
     case User of
-        user_not_found -> user:add(pusers, Name);
-	    _              -> user_already_exist
+        user_not_found -> user_added_ok = puser:add(users, Name);
+    	 _             -> user_already_exist
     end.
 
 send_request(Server, Command, Arguments, Response) ->
@@ -162,3 +165,9 @@ send_request(Server, Command, Arguments, Response) ->
     Res = string:concat(Response),
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
+
+getUser(Name) ->
+    puser:get(whereis(users), Name).
+
+addUser(Name) ->
+    user_added_ok = puser:add(whereis(users), Name).

@@ -10,11 +10,11 @@ start() ->
     User1 = #user{name="Lauro"},
     User2 = #user{name="Juan"},
     UserLongName = #user{name="this game has a really long name"},
-    user:add(PUser, User1),
-    user:add(PUser, User2),
-    user:add(PUser, UserLongName),
+    user_added_ok = user:add(PUser, User1#user.name),
+    user_added_ok = user:add(PUser, User2#user.name),
+    user_added_ok = user:add(PUser, UserLongName#user.name),
     %% 3- get games
-    User1 = user:get(PUser, "Lauro"),
+    "Lauro" = (user:get(PUser, "Lauro"))#user.name,
     user_not_found = user:get(PUser, "some name that doesn't exist"),
     io:format("[ok] tusers\n"),
     ok.
