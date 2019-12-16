@@ -9,7 +9,7 @@
 -compile(export_all).
 
 println(Msg) ->
-  io:fwrite("~p~n", [Msg]).
+    io:fwrite("~p~n", [Msg]).
 
 %%% @doc Initialize the server:
 %%% @param Ports. List of ports to be listended by the server.
@@ -45,13 +45,10 @@ psocket(Sock) ->
 	%% Connect from a client
         {tcp, Sock, Cmd} ->
             case isValidConnectPcomand(Cmd) of
-                {ok, UserName} -> 
-		    State = create_user(UserName),
-		    io:fwrite("Cration of user with state ~p\n", [State]),
-		    pcomand_connect(Sock, State);
-                {error, Msg} ->   gen_tcp:send(Sock, Msg),
-		                          self() ! ok,
-		                          psocket(Sock)
+                {ok, UserName} -> pcomand_connect(Sock, create_user(UserName));
+                {error, Msg}   -> gen_tcp:send(Sock, Msg),
+				  self() ! ok,
+				  psocket(Sock)
             end;
         _ -> ok,
 	     self() ! ok,
@@ -64,9 +61,9 @@ psocket_loop(Sock) ->
         {tcp, Sock, Cmd} -> IsValidPcommand = isValidPcommand(Cmd),
                             if
                                 IsValidPcommand -> spawn_pcommand(Sock, Cmd);
-				                true -> gen_tcp:send(Sock, "Invalid pcommand")
+				true -> gen_tcp:send(Sock, "Invalid pcommand")
                             end;
-      _ -> println("psocket_loop no entiende lo que recivio.")
+	_ -> println("psocket_loop no entiende lo que recivio.")
     after
         1000 -> println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
 		%% exit(kill)
@@ -97,7 +94,7 @@ isValidConnectPcomand(String) ->
     Ss = string:strip(String),
     case string:str(Ss, "CON") of
         1 -> UserName = string:strip(string:sub_string(Ss, 4)),
-        {ok, UserName};
+	     {ok, UserName};
         _ -> {error, constants:get_string(invalid_con_command)}
     end.
 
@@ -157,7 +154,7 @@ create_user(Name) ->
     User = puser:get(users, Name),
     case User of
         user_not_found -> user_added_ok = puser:add(users, Name);
-    	 _             -> user_already_exist
+	_             -> user_already_exist
     end.
 
 send_request(Server, Command, Arguments, Response) ->
