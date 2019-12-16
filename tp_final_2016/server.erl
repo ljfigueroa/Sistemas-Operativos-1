@@ -113,15 +113,10 @@ pcomando(Server, Cmd) ->
     [Command | Arguments] = string:tokens(Cmd, " "),
     case Command of
 	"LSG" ->
-	    %% Game = games:get(whereis(pgames),123),
-	    %% io:fwrite("game.id <~p> game.state <~p> ~n", [Game#game.id, Game#game.state]),
-	    %% io:fwrite("games ~p ~n", [games:get_all(pgames)]),
-	    %% games:add(pgames, Game),
-	    %% io:fwrite("games after add and before get_all ~n", []),
-	    %% Response = games:get_all(pgames),
-	    %% io:fwrite("LGS response ~p ~n", [Response]),
+	    Response = getAllGames(),
+	    io:fwrite("LGS response ~p ~n", [Response]),
 	    %% send_request(Server, Command, Args, Response);
-	    gen_tcp:send(Server,string:concat("Exec command > ", "PUT ALL GAME LIST"));
+	     gen_tcp:send(Server,string:concat("Exec command > ", "PUT ALL GAME LIST"));
 	"NEW" ->
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"ACC" ->
@@ -163,8 +158,11 @@ send_request(Server, Command, Arguments, Response) ->
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
 
-getUser(Name) ->
-    puser:get(whereis(users), Name).
+getGame(Game_id) ->
+    pgame:get(whereis(games), Game_id).
 
-addUser(Name) ->
-    user_added_ok = puser:add(whereis(users), Name).
+getAllGames() ->
+    pgame:get_all(whereis(games)).
+
+addGame(Game) ->
+    pgame:add(whereis(games), Game).
