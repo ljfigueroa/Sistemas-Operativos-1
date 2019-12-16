@@ -22,8 +22,8 @@ start() ->
 send(Sock, Msg) ->
     gen_tcp:send(Sock, Msg),
     receive
-	       {tcp, Sock, Data} -> io:fwrite("OK - client send <~p> and receive <~p>~n", [Msg, Data])
+	{tcp, Sock, Data} -> io:fwrite("OK - client send <~p> and receive <~p>~n", [Msg, Data])
     after
-	       1000 -> io:fwrite("ERROR - client send <~p> and didn't receive a response~n", [Msg])
+	1000 -> io:fwrite("ERROR - client send <~p> and didn't receive a response~n", [Msg])
     end,
     ok.
