@@ -25,11 +25,11 @@ get(Pid, User_name) ->
     %% should have Self = self()  to pattern match the recieve? 
     Pid ! {self(), {get, User_name}},
     receive
-	{_ , get, Response} -> Response
+	{Pid , get, Response} -> Response
     end.
 
 add(Pid, User_name) ->
     Pid ! {self(), {add, User_name}},
     receive
-	{_, add, user_added} -> user_added_ok
+	{Pid ,add, user_added} -> user_added_ok
     end.

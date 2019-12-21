@@ -146,9 +146,9 @@ pcomand_connect(_, _) ->
     io:format("pcomand_connect with wrong arguments~n").
 
 create_user(Name) ->
-    User = puser:get(users, Name),
+    User = getUser(Name),
     case User of
-        user_not_found -> user_added_ok = puser:add(users, Name);
+        user_not_found -> user_added_ok = addUser(Name);
 	_             -> user_already_exist
     end.
 
@@ -158,6 +158,14 @@ send_request(Server, Command, Arguments, Response) ->
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
 
+%% puser
+addUser(User_name) ->
+    puser:add(whereis(users), User_name).
+
+getUser(User_name) ->
+    puser:get(whereis(users), User_name).
+
+%% pgame
 getGame(Game_id) ->
     pgame:get(whereis(games), Game_id).
 
