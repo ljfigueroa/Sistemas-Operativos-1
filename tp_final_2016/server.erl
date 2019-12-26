@@ -114,9 +114,10 @@ pcomando(Server, Cmd) ->
     case Command of
 	"LSG" ->
 	    Response = getAllGames(),
-	    io:fwrite("LGS response ~p ~n", [Response]),
+	    Res = io_lib:format("~p", [Response]),
+	    %% io:fwrite("LGS response ~p ~n", [Res]),
 	    %% send_request(Server, Command, Args, Response);
-	     gen_tcp:send(Server,string:concat("Exec command > ", "PUT ALL GAME LIST"));
+	    gen_tcp:send(Server, Res);
 	"NEW" ->
 	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
 	"ACC" ->
