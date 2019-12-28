@@ -5,7 +5,9 @@
 -import(puser, [user/0]).
 -import(pgame, [add/2, get/2]).
 -import(constants, [get_string/1]).
+-import(pcommand, [parse/1]).
 -include("game_interface.hrl").
+-include("pcommand_interface.hrl").
 -compile(export_all).
 
 println(Msg) ->
@@ -43,12 +45,16 @@ psocket(Sock) ->
     receive ok -> ok end,
     receive
 	%% Connect from a client
-        {tcp, Sock, Cmd} ->
-            case isValidConnectPcomand(Cmd) of
-                {ok, UserName} -> pcomand_connect(Sock, create_user(UserName));
-                {error, Msg}   -> gen_tcp:send(Sock, Msg),
-				  self() ! ok,
-				  psocket(Sock)
+        {tcp, Sock, Message} ->
+            case pcommand:parse(Message) of
+                {ok, con, Pcommand} ->
+		    %% Valid CON pcommand
+		    pcomand_connect(Sock, create_user(Pcommand#pcommand.name));
+                error ->
+		    %% Invalid CON pcommand
+		    gen_tcp:send(Sock, "Invalid CON command. Try something like CON Lauro."),
+		    self() ! ok,
+		    psocket(Sock)
             end;
         _ -> ok,
 	     self() ! ok,
@@ -90,14 +96,6 @@ pstat() ->
 
 isNameAvailable(List, String) -> not(lists:member(String, List)).
 
-isValidConnectPcomand(String) ->
-    Ss = string:strip(String),
-    case string:str(Ss, "CON") of
-        1 -> UserName = string:strip(string:sub_string(Ss, 4)),
-	     {ok, UserName};
-        _ -> {error, constants:get_string(invalid_con_command)}
-    end.
-
 isValidPcommand(String) ->
     ValidPcommands = ["LSG", "NEW", "ACC", "PLA", "OBS", "LEA", "BYE"],
     lists:member(String, ValidPcommands).
@@ -111,6 +109,7 @@ pcomando(Server, Cmd) ->
     Args = [""],
     %% io:fwrite("##  EJECUTANDO PCOMANDO =>  <~p>~n",[Cmd]),
     [Command | Arguments] = string:tokens(Cmd, " "),
+    pcommand:parse(Cmd),
     case Command of
 	"LSG" ->
 	    Response = getAllGames(),
