@@ -64,15 +64,16 @@ psocket(Sock) ->
 psocket_loop(Sock) ->
     %% io:fwrite("psocket_loop ~n"),
     receive
-        {tcp, Sock, Cmd} -> IsValidPcommand = isValidPcommand(Cmd),
-                            if
-                                IsValidPcommand -> spawn_pcommand(Sock, Cmd);
-				true -> gen_tcp:send(Sock, "Invalid pcommand")
-                            end;
+        {tcp, Sock, Message} ->
+	    case pcommand:parse(Message) of
+		{ok, _, Pcommand} -> spawn_pcommand(Sock, Pcommand);
+		error -> gen_tcp:send(Sock, "Invalid command")
+	    end;
 	_ -> println("psocket_loop no entiende lo que recivio.")
     after
-        1000 -> println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
-		%% exit(kill)
+        1000 ->
+	    println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
+	    %% exit(kill)
     end,
     psocket_loop(Sock).
 
@@ -95,11 +96,6 @@ pstat() ->
 
 
 isNameAvailable(List, String) -> not(lists:member(String, List)).
-
-isValidPcommand(String) ->
-    ValidPcommands = ["LSG", "NEW", "ACC", "PLA", "OBS", "LEA", "BYE"],
-    lists:member(String, ValidPcommands).
-
 
 spawn_pcommand(Server, Cmd) ->
     %% io:format("NEW PCOMAND\n"),
