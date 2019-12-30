@@ -20,18 +20,18 @@ parse(RawString) ->
 pcommand(con, [Name | []]) ->
     {ok, con, #pcommand{id=con, name=Name}};
 pcommand(lgs, [CmdId | []]) ->
-    #pcommand{id=lgs, cmdId=CmdId};
+    {ok, #pcommand{id=lgs, cmdId=CmdId}};
 pcommand(new, [CmdId | []]) ->
-    #pcommand{id=new, cmdId=CmdId};
+    {ok, #pcommand{id=new, cmdId=CmdId}};
 pcommand(acc, [CmdId, GameId | []]) ->
-    #pcommand{id=acc, cmdId=CmdId};
+    {ok, #pcommand{id=acc, cmdId=CmdId}};
 pcommand(pla, [CmdId, GameId, PlayMove | []]) ->
-    #pcommand{id=pla, cmdId=CmdId, gameId=GameId, move=PlayMove};
+    {ok, #pcommand{id=pla, cmdId=CmdId, gameId=GameId, move=PlayMove}};
 pcommand(obs, [CmdId, GameId | []]) ->
-    #pcommand{id=obs, cmdId=CmdId, gameId=GameId};
+    {ok, #pcommand{id=obs, cmdId=CmdId, gameId=GameId}};
 pcommand(lea, [CmdId, GameId | []]) ->
-    #pcommand{id=lea, cmdId=CmdId};
+    {ok, #pcommand{id=lea, cmdId=CmdId}};
 pcommand(bye, []) ->
-    #pcommand{id=bye};
+    {ok, #pcommand{id=bye}};
 pcommand(_, _) ->
     error.

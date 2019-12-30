@@ -66,7 +66,7 @@ psocket_loop(Sock) ->
     receive
         {tcp, Sock, Message} ->
 	    case pcommand:parse(Message) of
-		{ok, _, Pcommand} -> spawn_pcommand(Sock, Pcommand);
+		{ok, Pcommand} -> spawn_pcommand(Sock, Pcommand);
 		error -> gen_tcp:send(Sock, "Invalid command")
 	    end;
 	_ -> println("psocket_loop no entiende lo que recivio.")
@@ -104,27 +104,27 @@ spawn_pcommand(Server, Cmd) ->
 pcomando(Server, Cmd) ->
     Args = [""],
     %% io:fwrite("##  EJECUTANDO PCOMANDO =>  <~p>~n",[Cmd]),
-    [Command | Arguments] = string:tokens(Cmd, " "),
-    pcommand:parse(Cmd),
+    %% [Command | Arguments] = string:tokens(Cmd, " "),
+    Command = Cmd#pcommand.id,
     case Command of
-	"LSG" ->
+	lgs ->
 	    Response = getAllGames(),
 	    Res = io_lib:format("~p", [Response]),
 	    %% io:fwrite("LGS response ~p ~n", [Res]),
 	    %% send_request(Server, Command, Args, Response);
 	    gen_tcp:send(Server, Res);
-	"NEW" ->
-	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
-	"ACC" ->
-    	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
-	"PLA" ->
-	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
-	"OBS" ->
-	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
-	"LEA" ->
-	    gen_tcp:send(Server,string:concat("Exec command > ", Command));
-	"BYE" ->
-	    gen_tcp:send(Server,string:concat("Exec command > ", Command))
+	new ->
+	    gen_tcp:send(Server, "Exec command > new ");
+	acc ->
+    	    gen_tcp:send(Server, "Exec command > acc ");
+	pla ->
+	    gen_tcp:send(Server, "Exec command > pla");
+	obs ->
+	    gen_tcp:send(Server, "Exec command > obs");
+	lea ->
+	    gen_tcp:send(Server, "Exec command > lea");
+	bye ->
+	    gen_tcp:send(Server, "Exec command > bye ")
     end.
 
 
