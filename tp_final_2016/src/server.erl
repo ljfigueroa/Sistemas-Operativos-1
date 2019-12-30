@@ -101,35 +101,26 @@ spawn_pcommand(Server, Cmd) ->
     %% io:format("NEW PCOMAND\n"),
     spawn(?MODULE, pcomando, [Server, Cmd]).
 
-pcomando(Server, Cmd) ->
-    Args = [""],
-    %% io:fwrite("##  EJECUTANDO PCOMANDO =>  <~p>~n",[Cmd]),
-    %% [Command | Arguments] = string:tokens(Cmd, " "),
-    Command = Cmd#pcommand.id,
-    case Command of
-	lgs ->
-	    Response = getAllGames(),
-	    Res = io_lib:format("~p", [Response]),
-	    %% io:fwrite("LGS response ~p ~n", [Res]),
-	    %% send_request(Server, Command, Args, Response);
-	    gen_tcp:send(Server, Res);
-	new ->
-	    gen_tcp:send(Server, "Exec command > new ");
-	acc ->
-    	    gen_tcp:send(Server, "Exec command > acc ");
-	pla ->
-	    gen_tcp:send(Server, "Exec command > pla");
-	obs ->
-	    gen_tcp:send(Server, "Exec command > obs");
-	lea ->
-	    gen_tcp:send(Server, "Exec command > lea");
-	bye ->
-	    gen_tcp:send(Server, "Exec command > bye ")
-    end.
+pcomando(Socket, Cmd=#pcommand{id=lgs}) ->
+    Response = getAllGames(),
+    Res = io_lib:format("~p", [Response]),
+    gen_tcp:send(Socket, Res);
+pcomando(Socket, Cmd=#pcommand{id=new}) ->
+    gen_tcp:send(Socket, "Exec command > new");
+pcomando(Socket, Cmd=#pcommand{id=acc}) ->
+    gen_tcp:send(Socket, "Exec command > acc");
+pcomando(Socket, Cmd=#pcommand{id=pla}) ->
+    gen_tcp:send(Socket, "Exec command > pla");
+pcomando(Socket, Cmd=#pcommand{id=obs}) ->
+    gen_tcp:send(Socket, "Exec command > obs");
+pcomando(Socket, Cmd=#pcommand{id=lea}) ->
+    gen_tcp:send(Socket, "Exec command > lea");
+pcomando(Socket, Cmd=#pcommand{id=bye}) ->
+    gen_tcp:send(Socket, "Exec command > bye");
+pcomando(Socket, _) ->
+    %% this shouldn't happen.
+    gen_tcp:send(Socket, "Unsupported pcommand option").
 
-
-pcomando(lgs) ->
-    ok.
 
 pcomand_connect(Sock, user_added_ok) ->
     gen_tcp:send(Sock, "OK USER :D"),
