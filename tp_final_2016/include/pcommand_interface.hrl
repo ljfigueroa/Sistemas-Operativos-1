@@ -1,2 +1,2 @@
 %% Pcommand state
--record(pcommand, {id, cmdId, gameId, name, move, args}).
+-record(pcommand, {id, cmd_id, game_id, name, move, args}).

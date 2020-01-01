@@ -19,18 +19,18 @@ parse(RawString) ->
 
 pcommand(con, [Name | []]) ->
     {ok, con, #pcommand{id=con, name=Name}};
-pcommand(lgs, [CmdId | []]) ->
-    {ok, #pcommand{id=lgs, cmdId=CmdId}};
-pcommand(new, [CmdId | []]) ->
-    {ok, #pcommand{id=new, cmdId=CmdId}};
-pcommand(acc, [CmdId, GameId | []]) ->
-    {ok, #pcommand{id=acc, cmdId=CmdId}};
-pcommand(pla, [CmdId, GameId, PlayMove | []]) ->
-    {ok, #pcommand{id=pla, cmdId=CmdId, gameId=GameId, move=PlayMove}};
-pcommand(obs, [CmdId, GameId | []]) ->
-    {ok, #pcommand{id=obs, cmdId=CmdId, gameId=GameId}};
-pcommand(lea, [CmdId, GameId | []]) ->
-    {ok, #pcommand{id=lea, cmdId=CmdId}};
+pcommand(lgs, [CmdID | []]) ->
+    {ok, #pcommand{id=lgs, cmd_id=CmdID}};
+pcommand(new, [CmdID | []]) ->
+    {ok, #pcommand{id=new, cmd_id=CmdID}};
+pcommand(acc, [CmdID, GameID | []]) ->
+    {ok, #pcommand{id=acc, cmd_id=CmdID}};
+pcommand(pla, [CmdID, GameID, PlayMove | []]) ->
+    {ok, #pcommand{id=pla, cmd_id=CmdID, game_id=GameID, move=PlayMove}};
+pcommand(obs, [CmdID, GameID | []]) ->
+    {ok, #pcommand{id=obs, cmd_id=CmdID, game_id=GameID}};
+pcommand(lea, [CmdID, GameID | []]) ->
+    {ok, #pcommand{id=lea, cmd_id=CmdID}};
 pcommand(bye, []) ->
     {ok, #pcommand{id=bye}};
 pcommand(_, _) ->
