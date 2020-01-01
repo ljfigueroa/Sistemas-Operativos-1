@@ -8,3 +8,8 @@ get_server(Pbalance) ->
         {ok, Server} -> {ok, Server}
     end.
 
+pbalance() ->
+    receive
+        {req, Pid} -> Pid ! {ok, "SERVER ;)"}
+    end,
+    pbalance().

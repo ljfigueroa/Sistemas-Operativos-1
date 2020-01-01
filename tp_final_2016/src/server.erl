@@ -77,23 +77,6 @@ psocket_loop(Sock) ->
     end,
     psocket_loop(Sock).
 
-pbalance() ->
-    receive
-        {req, Pid} -> Pid ! {ok, "SERVER ;)"}
-    end,
-    pbalance().
-
-pstat() ->
-    receive
-    after
-        3000 ->
-            {ok, Servers} = server:get_servers(),
-            {Total_Reductions, _} = erlang:statictics(reductions),
-            Fun = (fun(S) -> {server:notify(S, Total_Reductions)} end),
-            list:map(Fun, Servers),
-            pstat()
-    end.
-
 
 isNameAvailable(List, String) -> not(lists:member(String, List)).
 
