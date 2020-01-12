@@ -1,4 +1,4 @@
--module(pstat).
+-module(statistic_service).
 -compile(export_all).
 
 pstat() ->
