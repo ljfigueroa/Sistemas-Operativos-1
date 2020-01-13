@@ -20,8 +20,8 @@ init(Ports) ->
     register(pbalance, spawn(balance_service, start, [])),
     register(games, spawn(pgame, pgame, [])),
     %% register(provider, spawn(?MODULE, provider, [])),
-    register(ps, spawn(?MODULE, pstat , [])),
-    %% register(pstat, spawn(statistic_service, start, [])),
+    %% register(ps, spawn(?MODULE, pstat , [])),
+    register(pstat, spawn(statistic_service, start, [])),
     spawn(?MODULE, dispatcher, [Ports]).
 
 %%% @doc Initialize the dispatcher process
@@ -106,7 +106,7 @@ pcomando(Socket, _) ->
     %% this shouldn't happen.
     gen_tcp:send(Socket, "Unsupported pcommand option").
 
- 
+
 pcomand_connect(Sock, user_added_ok) ->
     gen_tcp:send(Sock, "OK USER :D"),
     psocket_loop(Sock);
@@ -146,39 +146,3 @@ getAllGames() ->
 
 addGame(Game) ->
     pgame:add(whereis(games), Game).
-
-
-get_servers() ->
-    {ok, nodes()}.
-
-pstat() ->
-    receive
-    after
-        3000 ->
-            {ok, Servers} = get_servers(),
-	    %io:format("server pstat ~p~n", [Servers]),
-	    %% io:format("server statistics ~p~n", [erlang:statistics(reductions)],
-            {Total_Reductions, _} = erlang:statistics(reductions),
-            Fun = (fun(S) -> {notify(S, Total_Reductions)} end),
-            lists:map(Fun, Servers),
-            pstat()
-    end.
-
-notify(N, Total_Reductions) ->
-    %% io:format("Notify from  ~p  to  ~p pbalance ~p reductions ~n", [node(), N, Total_Reductions]),
-    {pbalance, N} ! {update, node(), Total_Reductions},
-    ok.
-
-%% get_server( Pbalance) ->
-    %% io:fwrite("Modulo pbalance y el metodo get_server(~p) ~n", [Pbalance]),
-    %% Pbalance ! {req, self()},
-    %% receive
-    %%     {ok, Server} -> {ok, Server}
-    %% end.
-
-pbalance() ->
-    receive
-        {No, Pid,  R} ->
-	    io:format("(~p PB) from ~p with pid ~p reduction ~p ~n", [node(), No, Pid, R])
-    end,
-    pbalance().
