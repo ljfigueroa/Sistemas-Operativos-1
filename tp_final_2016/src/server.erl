@@ -83,8 +83,8 @@ isNameAvailable(List, String) -> not(lists:member(String, List)).
 
 spawn_pcommand(Server, Cmd) ->
     %% io:format("NEW PCOMAND\n"),
-    %get_server(pb),
-    spawn(?MODULE, pcomando, [Server, Cmd]).
+    {ok, Node} = balance_service:get_server(pbalance),
+    spawn(Node, ?MODULE, pcomando, [Server, Cmd]).
 
 pcomando(Socket, Cmd=#pcommand{id=lgs}) ->
     Response = getAllGames(),
