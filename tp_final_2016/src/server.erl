@@ -6,6 +6,7 @@
 -import(pgame, [add/2, get/2]).
 -import(constants, [get_string/1]).
 -import(pcommand, [parse/1]).
+-include("user_interface.hrl").
 -include("game_interface.hrl").
 -include("pcommand_interface.hrl").
 -compile(export_all).
@@ -50,7 +51,7 @@ psocket(Sock) ->
             case pcommand:parse(Message) of
                 {ok, con, Pcommand} ->
 		    %% Valid CON pcommand
-		    pcomand_connect(Sock, create_user(Pcommand#pcommand.name));
+		    pcomand_connect(Sock, create_user(Pcommand#pcommand.name, Sock));
                 error ->
 		    %% Invalid CON pcommand
 		    gen_tcp:send(Sock, "Invalid CON command. Try something like CON Lauro."),
@@ -62,12 +63,12 @@ psocket(Sock) ->
 	     psocket(Sock)
     end.
 
-psocket_loop(Sock) ->
+psocket_loop(U = #user{socket=Sock}) ->
     %% io:fwrite("psocket_loop ~n"),
     receive
         {tcp, Sock, Message} ->
 	    case pcommand:parse(Message) of
-		{ok, Pcommand} -> spawn_pcommand(Sock, Pcommand);
+		{ok, Pcommand} -> spawn_pcommand(Sock, U, Pcommand);
 		error -> gen_tcp:send(Sock, "Invalid command")
 	    end;
 	_ -> println("psocket_loop no entiende lo que recivio.")
@@ -76,40 +77,43 @@ psocket_loop(Sock) ->
 	    println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
 	    %% exit(kill)
     end,
-    psocket_loop(Sock).
+    psocket_loop(U).
 
 
 isNameAvailable(List, String) -> not(lists:member(String, List)).
 
-spawn_pcommand(Server, Cmd) ->
+spawn_pcommand(Server, User, Cmd) ->
     %% io:format("NEW PCOMAND\n"),
     {ok, Node} = balance_service:get_server(pbalance),
-    spawn(Node, ?MODULE, pcomando, [Server, Cmd]).
+    spawn(Node, ?MODULE, pcomando, [Server, User, Cmd]).
 
-pcomando(Socket, Cmd=#pcommand{id=lgs}) ->
+pcomando(Socket, _,  Cmd=#pcommand{id=lgs}) ->
     Response = getAllGames(),
-    Res = io_lib:format("~p", [Response]),
+    Res = pcommand:format(ok, Cmd, {Response}),
     gen_tcp:send(Socket, Res);
-pcomando(Socket, Cmd=#pcommand{id=new}) ->
-    gen_tcp:send(Socket, "Exec command > new");
-pcomando(Socket, Cmd=#pcommand{id=acc}) ->
+pcomando(Socket, User, Cmd=#pcommand{id=new}) ->
+    Game = #game{p1=User, id=random:uniform(1000)},
+    addGame(Game),
+    Res = pcommand:format(ok, Cmd, {}),
+    gen_tcp:send(Socket, Res);
+pcomando(Socket, _, Cmd=#pcommand{id=acc, game_id=GameId}) ->
     gen_tcp:send(Socket, "Exec command > acc");
-pcomando(Socket, Cmd=#pcommand{id=pla}) ->
+pcomando(Socket, _, Cmd=#pcommand{id=pla}) ->
     gen_tcp:send(Socket, "Exec command > pla");
-pcomando(Socket, Cmd=#pcommand{id=obs}) ->
+pcomando(Socket, _, Cmd=#pcommand{id=obs}) ->
     gen_tcp:send(Socket, "Exec command > obs");
-pcomando(Socket, Cmd=#pcommand{id=lea}) ->
+pcomando(Socket, _, Cmd=#pcommand{id=lea}) ->
     gen_tcp:send(Socket, "Exec command > lea");
-pcomando(Socket, Cmd=#pcommand{id=bye}) ->
+pcomando(Socket, _, Cmd=#pcommand{id=bye}) ->
     gen_tcp:send(Socket, "Exec command > bye");
-pcomando(Socket, _) ->
+pcomando(Socket, _, _) ->
     %% this shouldn't happen.
     gen_tcp:send(Socket, "Unsupported pcommand option").
 
 
-pcomand_connect(Sock, user_added_ok) ->
+pcomand_connect(Sock, {user_added_ok, User}) ->
     gen_tcp:send(Sock, "OK USER :D"),
-    psocket_loop(Sock);
+    psocket_loop(User);
 pcomand_connect(Sock, user_already_exist) ->
     gen_tcp:send(Sock, constants:get_string(user_already_exist)),
     self() ! ok,
@@ -117,12 +121,8 @@ pcomand_connect(Sock, user_already_exist) ->
 pcomand_connect(_, _) ->
     io:format("pcomand_connect with wrong arguments~n").
 
-create_user(Name) ->
-    User = getUser(Name),
-    case User of
-        user_not_found -> user_added_ok = addUser(Name);
-	_             -> user_already_exist
-    end.
+create_user(Name, Socket) ->
+    addUser(Name, Socket, node()).
 
 send_request(Server, Command, Arguments, Response) ->
     Args = string:concat(Arguments),
@@ -131,8 +131,8 @@ send_request(Server, Command, Arguments, Response) ->
     gen_tcp:send(Server, Post).
 
 %% puser
-addUser(User_name) ->
-    puser:add(whereis(users), User_name).
+addUser(User_name, Socket, Node) ->
+    puser:add(whereis(users), User_name, Socket, Node).
 
 getUser(User_name) ->
     puser:get(whereis(users), User_name).

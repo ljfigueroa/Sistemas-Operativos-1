@@ -35,3 +35,23 @@ pcommand(bye, []) ->
     {ok, #pcommand{id=bye}};
 pcommand(_, _) ->
     error.
+
+format_type(ok) ->
+    "OK";
+format_type(error) ->
+    "ERROR".
+
+format_response({R})->
+    io_lib:format("~p", [R]);
+format_response(_) ->
+    "".
+
+%% @doc
+%% param T
+format(T, C = #pcommand{id=lgs, cmd_id=CmdId}, Response)->
+    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+format(T, C = #pcommand{id=new, cmd_id=CmdId}, Response) ->
+    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+format(_,_,_) ->
+    "TODO".
+

@@ -9,9 +9,9 @@ puser() ->
 
 user_loop(Users) ->
     receive
-	{From, {add, User_name}} -> 
-	    User = #user{name = User_name, game = not_in_game},
-	    From ! {self(), add, user_added},
+	{From, {add, User_name, Socket, Node}} -> 
+	    User = #user{name = User_name, game = not_in_game, socket = Socket, node = Node},
+	    From ! {self(), add, user_added, User},
 	    user_loop(maps:put(User_name, User, Users));
 	{From, {get, User_name}} ->
 	    case maps:find(User_name, Users) of
@@ -28,8 +28,8 @@ get(Pid, User_name) ->
 	{Pid , get, Response} -> Response
     end.
 
-add(Pid, User_name) ->
-    Pid ! {self(), {add, User_name}},
+add(Pid, User_name, Socket, Node) ->
+    Pid ! {self(), {add, User_name, Socket, Node}},
     receive
-	{Pid ,add, user_added} -> user_added_ok
+	{Pid ,add, user_added, User} -> {user_added_ok, User}
     end.
