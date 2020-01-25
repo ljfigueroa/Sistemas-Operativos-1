@@ -4,6 +4,9 @@
 
 start() ->
     Port = 8000 + random:uniform(100),
+    start(Port).
+
+start(Port)->
     server:init([Port]),
     %%timer:sleep(3000),
     {ok, Sock} = gen_tcp:connect("localhost", Port, [binary, {packet, 0}]),

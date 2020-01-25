@@ -9,8 +9,12 @@ puser() ->
 
 user_loop(Users) ->
     receive
-	{From, {add, User_name, Socket, Node}} -> 
-	    User = #user{name = User_name, game = not_in_game, socket = Socket, node = Node},
+	{From, {add, User_name, S, P, N}} -> 
+	    User = #user{name = User_name,
+			 game = not_in_game,
+			 socket = S,
+			 pid = P,
+			 node = N},
 	    From ! {self(), add, user_added, User},
 	    user_loop(maps:put(User_name, User, Users));
 	{From, {get, User_name}} ->
@@ -28,8 +32,8 @@ get(Pid, User_name) ->
 	{Pid , get, Response} -> Response
     end.
 
-add(Pid, User_name, Socket, Node) ->
-    Pid ! {self(), {add, User_name, Socket, Node}},
+add(Pid, User_name, Socket, P, Node) ->
+    Pid ! {self(), {add, User_name, Socket, P, Node}},
     receive
 	{Pid ,add, user_added, User} -> {user_added_ok, User}
     end.

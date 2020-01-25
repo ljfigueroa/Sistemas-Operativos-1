@@ -51,7 +51,7 @@ psocket(Sock) ->
             case pcommand:parse(Message) of
                 {ok, con, Pcommand} ->
 		    %% Valid CON pcommand
-		    pcomand_connect(Sock, create_user(Pcommand#pcommand.name, Sock));
+		    pcomand_connect(Sock, create_user(Pcommand#pcommand.name, Sock, self()));
                 error ->
 		    %% Invalid CON pcommand
 		    gen_tcp:send(Sock, "Invalid CON command. Try something like CON Lauro."),
@@ -71,7 +71,12 @@ psocket_loop(U = #user{socket=Sock}) ->
 		{ok, Pcommand} -> spawn_pcommand(Sock, U, Pcommand);
 		error -> gen_tcp:send(Sock, "Invalid command")
 	    end;
-	_ -> println("psocket_loop no entiende lo que recivio.")
+	{pcommand, Message} ->
+	    %% io:format("psocket_loop is sending the response ~p ~n",[Message]),
+	    gen_tcp:send(Sock, io_lib:format("~s", [Message])); %% "Invalid command");
+	    %% get_tcp:send(Sock, Message);
+	_ -> 
+	    println("psocket_loop no entiende lo que recivio.")
     after
         1000 ->
 	    println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
@@ -87,28 +92,30 @@ spawn_pcommand(Server, User, Cmd) ->
     {ok, Node} = balance_service:get_server(pbalance),
     spawn(Node, ?MODULE, pcomando, [Server, User, Cmd]).
 
-pcomando(Socket, _,  Cmd=#pcommand{id=lgs}) ->
+pcomando(Socket, U,  Cmd=#pcommand{id=lgs}) ->
     Response = getAllGames(),
     Res = pcommand:format(ok, Cmd, {Response}),
-    gen_tcp:send(Socket, Res);
-pcomando(Socket, User, Cmd=#pcommand{id=new}) ->
-    Game = #game{p1=User, id=random:uniform(1000)},
+    U#user.pid ! {pcommand, Res};
+    %% gen_tcp:send(Socket, Res);
+pcomando(Socket, U, Cmd=#pcommand{id=new}) ->
+    Game = #game{p1=U, id=random:uniform(1000)},
     addGame(Game),
     Res = pcommand:format(ok, Cmd, {}),
-    gen_tcp:send(Socket, Res);
-pcomando(Socket, _, Cmd=#pcommand{id=acc, game_id=GameId}) ->
-    gen_tcp:send(Socket, "Exec command > acc");
-pcomando(Socket, _, Cmd=#pcommand{id=pla}) ->
-    gen_tcp:send(Socket, "Exec command > pla");
-pcomando(Socket, _, Cmd=#pcommand{id=obs}) ->
-    gen_tcp:send(Socket, "Exec command > obs");
-pcomando(Socket, _, Cmd=#pcommand{id=lea}) ->
-    gen_tcp:send(Socket, "Exec command > lea");
-pcomando(Socket, _, Cmd=#pcommand{id=bye}) ->
-    gen_tcp:send(Socket, "Exec command > bye");
-pcomando(Socket, _, _) ->
+    U#user.pid ! {pcommand, Res};
+pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
+    %% gen_tcp:send(Socket, "Exec command > acc");
+    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+pcomando(Socket, U, Cmd=#pcommand{id=pla}) ->
+    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+pcomando(Socket, U, Cmd=#pcommand{id=obs}) ->
+    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+pcomando(Socket, U, Cmd=#pcommand{id=lea}) ->
+    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+pcomando(Socket, U, Cmd=#pcommand{id=bye}) ->
+    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])}; 
+pcomando(Socket, U, _) ->
     %% this shouldn't happen.
-    gen_tcp:send(Socket, "Unsupported pcommand option").
+    U#user.pid ! {pcommand, io_lib:format("~s", ["Unsupported pcommand option"])}.
 
 
 pcomand_connect(Sock, {user_added_ok, User}) ->
@@ -121,8 +128,8 @@ pcomand_connect(Sock, user_already_exist) ->
 pcomand_connect(_, _) ->
     io:format("pcomand_connect with wrong arguments~n").
 
-create_user(Name, Socket) ->
-    addUser(Name, Socket, node()).
+create_user(Name, Socket, Pid) ->
+    addUser(Name, Socket, Pid,  node()).
 
 send_request(Server, Command, Arguments, Response) ->
     Args = string:concat(Arguments),
@@ -131,8 +138,8 @@ send_request(Server, Command, Arguments, Response) ->
     gen_tcp:send(Server, Post).
 
 %% puser
-addUser(User_name, Socket, Node) ->
-    puser:add(whereis(users), User_name, Socket, Node).
+addUser(User_name, Socket, Pid, Node) ->
+    puser:add(whereis(users), User_name, Socket, Pid, Node).
 
 getUser(User_name) ->
     puser:get(whereis(users), User_name).
