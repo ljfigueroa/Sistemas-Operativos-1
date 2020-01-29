@@ -24,7 +24,7 @@ pcommand(lgs, [CmdID | []]) ->
 pcommand(new, [CmdID | []]) ->
     {ok, #pcommand{id=new, cmd_id=CmdID}};
 pcommand(acc, [CmdID, GameID | []]) ->
-    {ok, #pcommand{id=acc, cmd_id=CmdID}};
+    {ok, #pcommand{id=acc, cmd_id=CmdID, game_id=GameID}};
 pcommand(pla, [CmdID, GameID, PlayMove | []]) ->
     {ok, #pcommand{id=pla, cmd_id=CmdID, game_id=GameID, move=PlayMove}};
 pcommand(obs, [CmdID, GameID | []]) ->
@@ -39,7 +39,10 @@ pcommand(_, _) ->
 format_type(ok) ->
     "OK";
 format_type(error) ->
-    "ERROR".
+    "ERROR";
+format_type(T) ->
+    io_lib:format("ERROR(~p)", [T]).
+
 
 format_response({R})->
     io_lib:format("~p", [R]);
@@ -51,6 +54,8 @@ format_response(_) ->
 format(T, C = #pcommand{id=lgs, cmd_id=CmdId}, Response)->
     io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
 format(T, C = #pcommand{id=new, cmd_id=CmdId}, Response) ->
+    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+format(T, C = #pcommand{id=acc, cmd_id=CmdId}, Response) ->
     io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
 format(_,_,_) ->
     "TODO".
