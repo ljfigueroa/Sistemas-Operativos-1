@@ -102,17 +102,15 @@ pcomando(Socket, U, Cmd=#pcommand{id=new}) ->
     Res = pcommand:format(ok, Cmd, {}),
     U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
-    %% gen_tcp:send(Socket, "Exec command > acc");
-    G = getGame(GameId),
     %% The user joining must not be the one who created the game.
     S = joinGame(U, GameId),
-    %% How to stop 2 different user joining the same game?
     Res = pcommand:format(S, Cmd, {}),
-    %% 
+    %% le deberia avisar  Game#game.p1??
     U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=pla}) ->
     U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
-pcomando(Socket, U, Cmd=#pcommand{id=obs}) ->
+pcomando(Socket, U, Cmd=#pcommand{id=obs, game_id=GameId}) ->
+    watchGame(U, GameId),
     U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
 pcomando(Socket, U, Cmd=#pcommand{id=lea}) ->
     U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
@@ -164,3 +162,6 @@ newGame(Game) ->
 
 joinGame(User, GameId) ->
     pgame:join(whereis(games), User, GameId).
+
+watchGame(User, GameId) ->
+    pgame:watch(whereis(games), User, GameId).
