@@ -17,7 +17,7 @@ start(Port)->
     ok = send(Sock, io_lib:format(" ACC  ~p  ~p ", [getUniqueId(), getUniqueId()])),
     ok = send(Sock, io_lib:format(" LSG  ~p ", [getUniqueId()])),
     ok = send(Sock, io_lib:format(" PLA  ~p  ~p  ~p ", [make_ref(), "GameId", "Move"])),
-    ok = send(Sock, io_lib:format(" OBS  ~p  ~p ", [make_ref(), "GameId"])),
+    ok = send(Sock, io_lib:format(" OBS  ~p  ~p ", [getUniqueId(), getUniqueId()])),
     ok = send(Sock, io_lib:format(" LEA  ~p  ~p ", [make_ref(), "GameId"])),
     ok = send(Sock, " BYE  "),
     ok = gen_tcp:close(Sock),

@@ -31,16 +31,17 @@ game_loop(Games) ->
 		    case (G#game.p1#user.name == User#user.name) of
 			true ->
 			    NG = G#game{p2=User},
-			    game_loop(maps:put(GameId, NG, Games)),
-			    From ! {self(), already_joined};
+			    From ! {self(), already_joined},
+			    game_loop(maps:put(GameId, NG, Games));
 			false ->
 			    case G#game.p2 =/= undefined of
 				true -> 
-				    From ! {self(), game_full};
+				    From ! {self(), game_full},
+				    game_loop(Games);
 				false ->
 				    NG = G#game{p2=User},
-				    game_loop(maps:put(GameId, NG, Games)),
-				    From ! {self(), ok}
+				    From ! {self(), ok},
+				    game_loop(maps:put(GameId, NG, Games))
 			    end
 		    end;
 		not_found -> 

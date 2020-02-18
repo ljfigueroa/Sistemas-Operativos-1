@@ -110,8 +110,9 @@ pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
 pcomando(Socket, U, Cmd=#pcommand{id=pla}) ->
     U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
 pcomando(Socket, U, Cmd=#pcommand{id=obs, game_id=GameId}) ->
-    watchGame(U, GameId),
-    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+    S = watchGame(U, GameId),
+    Res = pcommand:format(S, Cmd, {}),
+    U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=lea}) ->
     U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
 pcomando(Socket, U, Cmd=#pcommand{id=bye}) ->

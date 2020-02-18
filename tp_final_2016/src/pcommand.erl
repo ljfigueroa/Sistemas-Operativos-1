@@ -57,6 +57,8 @@ format(T, C = #pcommand{id=new, cmd_id=CmdId}, Response) ->
     io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
 format(T, C = #pcommand{id=acc, cmd_id=CmdId}, Response) ->
     io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+format(T, C = #pcommand{id=obs, cmd_id=CmdId}, Response) ->
+    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
 format(_,_,_) ->
     "TODO".
 
