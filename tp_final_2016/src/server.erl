@@ -113,10 +113,14 @@ pcomando(Socket, U, Cmd=#pcommand{id=obs, game_id=GameId}) ->
     S = watchGame(U, GameId),
     Res = pcommand:format(S, Cmd, {}),
     U#user.pid ! {pcommand, Res};
-pcomando(Socket, U, Cmd=#pcommand{id=lea}) ->
-    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+pcomando(Socket, U, Cmd=#pcommand{id=lea, game_id=GameId}) ->
+    S = leaveGame(U, GameId),
+    Res = pcommand:format(S, Cmd, {}),
+    U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=bye}) ->
-    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])}; 
+    S = byeGame(U),
+    Res = pcommand:format(S, Cmd, {}),
+    U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, _) ->
     %% this shouldn't happen.
     U#user.pid ! {pcommand, io_lib:format("~s", ["Unsupported pcommand option"])}.
@@ -166,3 +170,9 @@ joinGame(User, GameId) ->
 
 watchGame(User, GameId) ->
     pgame:watch(whereis(games), User, GameId).
+
+leaveGame(User, GameId) ->
+    pgame:leave(whereis(games), User, GameId).
+
+byeGame(User) ->
+    pgame:bye(whereis(games), User).

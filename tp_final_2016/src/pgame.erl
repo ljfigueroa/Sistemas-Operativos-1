@@ -57,6 +57,22 @@ game_loop(Games) ->
 		    From ! {self(), not_found}
 	    end,
 	    game_loop(Games);
+	{From, {leave, User, GameId}} ->
+	    case getGame(GameId, Games) of 
+		{value, G} ->
+		    Fun = fun(E) -> E#user.name == User#user.name end,
+		    Obs = lists:dropwhile(Fun, G#game.obs),
+		    Game = G#game{obs = Obs},
+		    From ! {self(), Game};
+		not_found ->
+		    From ! {self(), game_not_found}
+	    end,
+	    game_loop(Games);
+	{From, {bye, User}} ->
+	    Fun = fun(_, Game) -> removePlayer(Game, User) end,
+	    UpdateGames = maps:map(Fun, Games),
+	    From ! {self(), ok},
+	    game_loop(maps:merge(Games, UpdateGames));
 	{From, get_all_games} ->
 	    From ! {self(), Games},
 	    game_loop(Games)
@@ -64,6 +80,33 @@ game_loop(Games) ->
 
 getUniqueId() ->
     random:uniform(1000).
+
+
+removePlayer(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
+    Game#game{p1 = undefined};
+removePlayer(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
+    Game#game{p2 = undefined};
+removePlayer(Game, _) ->
+    Game.
+
+
+
+   
+
+userIn(User, Game) ->
+    Fun = fun(Name) -> Name == User#user.name end,
+    case lists:filter(Fun, getPlayersName(Game)) of
+	false -> false;
+	{value, Value} -> true
+    end.
+
+getPlayersName(Game) ->
+    getPlayerName(Game#game.p1) ++ getPlayerName(Game#game.p2).
+
+getPlayerName(User=#user{name=Name}) ->
+    Name;
+getPlayerName(_) ->
+    [].
 
 getGame(GameId, Games) ->
     io:format("getting ~p  game ~n", [GameId]),
@@ -105,6 +148,18 @@ join(Pid, User, GameId) ->
 
 watch(Pid, User, GameId) ->
     Pid ! {self(), {watch, User, GameId}},
+    receive
+	{Pid, Status} -> Status
+    end.
+
+leave(Pid, User, GameId) ->
+    Pid ! {self(), {leave, User, GameId}},
+    receive
+	{Pid, Status} -> Status
+    end.
+
+bye(Pid, User) ->
+    Pid ! {self(), {bye, User}},
     receive
 	{Pid, Status} -> Status
     end.
