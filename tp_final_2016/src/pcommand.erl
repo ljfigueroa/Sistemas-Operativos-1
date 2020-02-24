@@ -21,7 +21,7 @@ parse(RawString) ->
     end.
 
 pcommand(con, [Name | []]) ->
-    {ok, con, #pcommand{id=con, name=Name}};
+    {ok, #pcommand{id=con, name=Name}};
 pcommand(lgs, [CmdID | []]) ->
     {ok, #pcommand{id=lgs, cmd_id=CmdID}};
 pcommand(new, [CmdID | []]) ->
