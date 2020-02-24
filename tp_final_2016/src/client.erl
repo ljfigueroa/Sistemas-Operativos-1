@@ -37,3 +37,14 @@ send(Sock, Msg) ->
 	1000 -> io:fwrite("ERROR - client send <~p> and didn't receive a response~n", [Msg])
     end,
     ok.
+
+
+
+ss() ->
+    Port = 8000 + random:uniform(100),
+    server:init([Port]),
+    Port.
+
+new_con(Port) ->
+    {ok, Sock} = gen_tcp:connect("localhost", Port, [binary, {packet, 0}]),
+    Sock.

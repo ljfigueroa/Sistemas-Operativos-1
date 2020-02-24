@@ -48,8 +48,8 @@ psocket(Sock) ->
     receive
 	%% Connect from a client
         {tcp, Sock, Message} ->
-            case pcommand:parse(Message) of
-                {ok, con, Pcommand} ->
+            case pcommand:parse_connect(Message) of
+                {ok, Pcommand} ->
 		    %% Valid CON pcommand
 		    pcomand_connect(Sock, create_user(Pcommand#pcommand.name, Sock, self()));
                 error ->
@@ -79,7 +79,8 @@ psocket_loop(U = #user{socket=Sock}) ->
 	    println("psocket_loop no entiende lo que recivio.")
     after
         1000 ->
-	    println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
+	    ok
+	    %% println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
 	    %% exit(kill)
     end,
     psocket_loop(U).
@@ -107,8 +108,10 @@ pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
     Res = pcommand:format(S, Cmd, {}),
     %% le deberia avisar  Game#game.p1??
     U#user.pid ! {pcommand, Res};
-pcomando(Socket, U, Cmd=#pcommand{id=pla}) ->
-    U#user.pid ! {pcommand, io_lib:format("~p", [Cmd#pcommand.id])};
+pcomando(Socket, U, Cmd=#pcommand{id=pla, game_id=GameId, move=PlayMove}) ->
+    S = playGame(U, GameId, PlayMove),
+    Res = pcommand:format(S, Cmd, {}),
+    U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=obs, game_id=GameId}) ->
     S = watchGame(U, GameId),
     Res = pcommand:format(S, Cmd, {}),
@@ -167,6 +170,9 @@ newGame(Game) ->
 
 joinGame(User, GameId) ->
     pgame:join(whereis(games), User, GameId).
+
+playGame(User, GameId, PlayMove) ->
+    pgame:play(whereis(games), User, GameId, PlayMove).
 
 watchGame(User, GameId) ->
     pgame:watch(whereis(games), User, GameId).

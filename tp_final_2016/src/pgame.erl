@@ -9,23 +9,23 @@ game_loop(Games) ->
     receive
 	{From, {new, User}} ->
 	    Id = getUniqueId(),
-	    G = #game{p1=User, id=Id, p2=undefined},
+	    G = #game{p1=User, id=Id, p2=undefined, state=[]},
 	    From ! {self(), ok},
 	    game_loop(maps:put(Id, G, Games));
 	{From, {add, G}} ->
 	    From ! {self(), ok},
 	    game_loop(maps:put(G#game.id, G, Games));
 	{From, {get, GameId}} ->
-	    case getGame(GameId, Games) of 
+	    case getGame(GameId, Games) of
 		{value, Game} -> From ! {self(), Game};
 		not_found     -> From ! {self(), not_found}
 	    end,
 	    game_loop(Games);
 	{From, {join, User, GameId}} ->
-	    GID = hd(maps:values(Games)),
-	    case getGame(GID#game.id, Games) of 
-	%% case getGame(GameId, Games) of 
-		{value, G} -> 
+	    %% GID = hd(maps:values(Games)),
+	    %% case getGame(GID#game.id, Games) of
+	    case getGame(GameId, Games) of
+		{value, G} ->
 		    io:format("joining ~p to game ~p ~n", [G, User]),
 		    %% or (G#game.p2#user.name == User#user.name) of
 		    case (G#game.p1#user.name == User#user.name) of
@@ -35,7 +35,7 @@ game_loop(Games) ->
 			    game_loop(maps:put(GameId, NG, Games));
 			false ->
 			    case G#game.p2 =/= undefined of
-				true -> 
+				true ->
 				    From ! {self(), game_full},
 				    game_loop(Games);
 				false ->
@@ -44,12 +44,28 @@ game_loop(Games) ->
 				    game_loop(maps:put(GameId, NG, Games))
 			    end
 		    end;
-		not_found -> 
+		not_found ->
+		    From ! {self(), not_found}
+	    end,
+	    game_loop(Games);
+	%%%% PLAY
+	{From, {play, User, GameId, PlayMove}} ->
+	    io:format("playing gameid ~p user ~p with play ~p ~n", [GameId, User, PlayMove]),
+	    case getGame(GameId, Games) of
+		{value, G} ->
+		    case playMove(User, G, PlayMove) of
+			{ok, NG} ->
+			    From ! {self(), ok},
+			    game_loop(maps:put(GameId, NG, Games));
+			{error, Atom} ->
+			    From ! {self(), Atom}
+		     end;
+		not_found ->
 		    From ! {self(), not_found}
 	    end,
 	    game_loop(Games);
 	{From, {watch, User, GameId}} ->
-	    case getGame(GameId, Games) of 
+	    case getGame(GameId, Games) of
 		{value, G} ->
 		    Game = G#game{obs = [User | G#game.obs]},
 		    From ! {self(), Game};
@@ -58,7 +74,7 @@ game_loop(Games) ->
 	    end,
 	    game_loop(Games);
 	{From, {leave, User, GameId}} ->
-	    case getGame(GameId, Games) of 
+	    case getGame(GameId, Games) of
 		{value, G} ->
 		    Fun = fun(E) -> E#user.name == User#user.name end,
 		    Obs = lists:dropwhile(Fun, G#game.obs),
@@ -89,9 +105,58 @@ removePlayer(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
 removePlayer(Game, _) ->
     Game.
 
+getPlayerType(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
+    p1;
+getPlayerType(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
+    p2;
+getPlayerType(Game, _) ->
+    undefined.
 
 
-   
+isUserTurnAux(_, [])->
+    true;
+isUserTurnAux(T, [{T, _} | _]) ->
+    false;
+isUserTurnAux(_, _) ->
+    true.
+
+isUserTurn(Game, User) ->
+    Ptype = getPlayerType(Game, User),
+    State = Game#game.state,
+    isUserTurnAux(Ptype, State).
+
+
+isMoveAvailable(Game, PlayMove) ->
+    case length(Game#game.state) == 9 of
+	true ->
+	   {error, game_has_finish};
+	false ->
+	    Fun = fun(X={Player, Move}) -> Move == PlayMove end, %% check if move was used
+	    case lists:any(Fun, Game#game.state) of
+		true ->
+		    %% can't user move (it's already present in #game.state)
+		    {error, move_is_not_avaliable};
+		false ->
+		    true
+	    end
+    end.
+
+validPlayMove(Game, User, PlayMove) ->
+    case isUserTurn(Game, User) of
+	true ->
+	    isMoveAvailable(Game, PlayMove);
+	false ->
+	    {error, is_not_user_turn}
+    end.
+
+playMove(User, Game, PlayMove) ->
+    State =  Game#game.state,
+    case validPlayMove(Game, User, PlayMove) of
+	true ->
+	    {ok, Game#game{state=[{getPlayerType(Game, User), PlayMove} | State]} };
+	{error, Msg} ->
+	    {error, Msg}
+   end.
 
 userIn(User, Game) ->
     Fun = fun(Name) -> Name == User#user.name end,
@@ -114,7 +179,7 @@ getGame(GameId, Games) ->
 	not_found -> not_found;
 	Game      -> {value, Game}
     end.
-    
+
 get(Pid, Game_id) ->
     Pid ! {self(), {get, Game_id}},
     receive
@@ -139,9 +204,15 @@ new(Pid, User) ->
     receive
 	{Pid, ok} -> ok
     end.
-    
+
 join(Pid, User, GameId) ->
     Pid ! {self(), {join, User, GameId}},
+    receive
+	{Pid, Status} -> Status
+    end.
+
+play(Pid, User, GameId, PlayMove) ->
+    Pid ! {self(), {play, User, GameId, PlayMove}},
     receive
 	{Pid, Status} -> Status
     end.
