@@ -132,8 +132,8 @@ pcomando(Socket, U, _) ->
 pcomand_connect(Sock, {user_added_ok, User}) ->
     gen_tcp:send(Sock, "OK USER :D"),
     psocket_loop(User);
-pcomand_connect(Sock, user_already_exist) ->
-    gen_tcp:send(Sock, constants:get_string(user_already_exist)),
+pcomand_connect(Sock, user_name_in_use) ->
+    gen_tcp:send(Sock, "User name already used"),
     self() ! ok,
     psocket(Sock);
 pcomand_connect(_, _) ->
