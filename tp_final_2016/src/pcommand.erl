@@ -59,8 +59,8 @@ format_type(T) ->
     io_lib:format("ERROR(~p)", [T]).
 
 
-format_response(lgs, {GameMap})->
-    format_game_list(maps:values(GameMap)).
+format_response(lgs, {GameList})->
+    format_game_list(GameList).
 
 format_game_list(List) ->
     Fun = fun(G) -> format_game(G) end,

@@ -9,6 +9,7 @@ game_loop(Games) ->
     receive
 	{From, {new, User}} ->
 	    Id = getUniqueId(),
+	    io:fwrite("new game in node ~p ~n", [node()]),
 	    G = #game{p1=User, id=Id, p2=undefined, state=[]},
 	    From ! {self(), ok},
 	    game_loop(maps:put(Id, G, Games));
@@ -89,13 +90,36 @@ game_loop(Games) ->
 	    UpdateGames = maps:map(Fun, Games),
 	    From ! {self(), ok},
 	    game_loop(maps:merge(Games, UpdateGames));
+	{From, {get_current_games}} ->
+	    io:fwrite("get_current_games from games in node ~p ~n", [node()]),
+	    From ! {response, maps:values(Games)},
+	    game_loop(Games);
 	{From, get_all_games} ->
-	    From ! {self(), Games},
+	    io:fwrite("get_all_games from node ~p ~n", [node()]),
+	    RGS = getAllRemoteGames(),
+	    GS = maps:values(Games),
+	    From ! {self(), GS ++ RGS},
 	    game_loop(Games)
     end.
 
 getUniqueId() ->
     random:uniform(1000).
+
+getAllRemoteGames() ->
+    Servers = nodes(),
+    Fun = (fun(S) -> getRemoteGame(S) end),
+    LGS = lists:map(Fun, Servers), %% list of list of games
+    io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
+    %% merge de list of list
+    lists:foldl(fun(LS, Acc) -> LS ++ Acc end, [], LGS).
+    
+getRemoteGame(Node) ->
+    io:fwrite("Retrieve game list from ~p", [Node]),
+    {games, Node} ! {self(), {get_current_games}},
+    receive
+	{response, Boolean} ->  Boolean
+    end.
+
 
 
 removePlayer(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->

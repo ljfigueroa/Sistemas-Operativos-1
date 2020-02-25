@@ -94,11 +94,13 @@ spawn_pcommand(Server, User, Cmd) ->
     spawn(Node, ?MODULE, pcomando, [Server, User, Cmd]).
 
 pcomando(Socket, U,  Cmd=#pcommand{id=lgs}) ->
+    io:fwrite("EXEC LSG in node ~p ~n", [node()]),
     Response = getAllGames(),
     Res = pcommand:format(ok, Cmd, {Response}),
     U#user.pid ! {pcommand, Res};
     %% gen_tcp:send(Socket, Res);
 pcomando(Socket, U, Cmd=#pcommand{id=new}) ->
+    io:fwrite("EXEC NEW in node ~p ~n", [node()]),
     ok = newGame(U),
     Res = pcommand:format(ok, Cmd, {}),
     U#user.pid ! {pcommand, Res};
