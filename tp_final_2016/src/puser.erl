@@ -9,15 +9,11 @@ puser() ->
 
 user_loop(Users) ->
     receive
-	{From, test} ->
-	    io:fwrite("SIIIIIIIIIIIIIIIII llego test ~n"),
-	    From ! {response, true},
-	    user_loop(Users);
-	{is_name_available, Node, Pid, Name} ->
-	    io:fwrite("is_name_available ~n"),
+	%% Request to check if Name is present in current Users.
+	{From, {is_name_available, Name}} ->
 	    case maps:find(Name, Users) of
-		{ok, _} ->  Pid ! {response, false};
-		_       ->  Pid ! {response, true}
+		{ok, _} ->  From ! {response, false};
+		_       ->  From ! {response, true}
 	    end,
 	    user_loop(Users);
 	{From, {add, User_name, S, P, N}} -> 
@@ -57,25 +53,22 @@ add(Pid, User_name, Socket, P, Node) ->
     end.
 
 
-
+%%% @doc Return true if the Name is not being used in the current or other
+%%%      nodes. Otherwise return false.
 isNameAvailable(Users, Name) ->
     case maps:find(Name, Users) of
 	{ok, _} -> false;
 	_ ->
-	    io:fwrite("buscando si ~p esta disponible en los otros nodos ~n", [Name]),
 	    Servers = nodes(),
 	    Fun = (fun(S) -> {askForName(S, Name)} end),
 	    ListOfBoolean = lists:map(Fun, Servers),
-	    io:fwrite("lista de booleans ~p ~n", [ListOfBoolean]),
-	    lists:foldl(fun(X={B}, Res) -> B andalso Res end, true, ListOfBoolean)
+	    %% return true if all nodes respond with {true}
+	    lists:foldl(fun({Bool}, Acc) -> Bool andalso Acc end, true, ListOfBoolean)
     end.
 
+%%% @doc Ask is the Name is available and wait for the response.
 askForName(Node, Name) ->
-    {users, Node} ! {self(), test},
-    %% {puser, Node} ! {is_name_available, node(), self(),  Name},
+    {users, Node} ! {self(), {is_name_available, Name}},
     receive
-	{response, Boolean} ->
-	    io:fwrite("respuesta de users!!!  ~n"),
-	    Boolean;
-	_  -> io:fwrite("aks for name recibio algo ~n")
+	{response, Boolean} ->  Boolean
     end.
