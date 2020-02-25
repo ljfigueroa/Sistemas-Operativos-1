@@ -9,12 +9,23 @@ puser() ->
 
 user_loop(Users) ->
     receive
+	{From, test} ->
+	    io:fwrite("SIIIIIIIIIIIIIIIII llego test ~n"),
+	    From ! {response, true},
+	    user_loop(Users);
+	{is_name_available, Node, Pid, Name} ->
+	    io:fwrite("is_name_available ~n"),
+	    case maps:find(Name, Users) of
+		{ok, _} ->  Pid ! {response, false};
+		_       ->  Pid ! {response, true}
+	    end,
+	    user_loop(Users);
 	{From, {add, User_name, S, P, N}} -> 
-	    case maps:find(User_name, Users) of
-		{ok, _} ->
+	    case isNameAvailable(Users, User_name) of
+		false ->
 		    From ! {self(), add, user_name_in_use},
 		    user_loop(Users);
-		_ ->
+		true ->
 		    User = #user{name = User_name,
 				 game = not_in_game,
 				 socket = S,
@@ -47,3 +58,24 @@ add(Pid, User_name, Socket, P, Node) ->
 
 
 
+isNameAvailable(Users, Name) ->
+    case maps:find(Name, Users) of
+	{ok, _} -> false;
+	_ ->
+	    io:fwrite("buscando si ~p esta disponible en los otros nodos ~n", [Name]),
+	    Servers = nodes(),
+	    Fun = (fun(S) -> {askForName(S, Name)} end),
+	    ListOfBoolean = lists:map(Fun, Servers),
+	    io:fwrite("lista de booleans ~p ~n", [ListOfBoolean]),
+	    lists:foldl(fun(X={B}, Res) -> B andalso Res end, true, ListOfBoolean)
+    end.
+
+askForName(Node, Name) ->
+    {users, Node} ! {self(), test},
+    %% {puser, Node} ! {is_name_available, node(), self(),  Name},
+    receive
+	{response, Boolean} ->
+	    io:fwrite("respuesta de users!!!  ~n"),
+	    Boolean;
+	_  -> io:fwrite("aks for name recibio algo ~n")
+    end.

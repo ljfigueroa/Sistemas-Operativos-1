@@ -45,8 +45,12 @@ send(Sock, Msg) ->
 %% start server
 ss() ->
     Port = 8000 + random:uniform(100),
+    ss(Port).
+
+ss(Port) ->
     server:init([Port]),
     Port.
+
 
 %% start new socket for user
 new_con(Port) ->
