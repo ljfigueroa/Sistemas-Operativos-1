@@ -65,12 +65,33 @@ format_response(acc, {PType, U, Game}) ->
     io_lib:format("~p (0, ~p) ~s", [Game#game.id, PType, U#user.name]);
 format_response(pla, {PType, Game, Move}) ->
     io_lib:format("~p (~p, ~p)", [Game#game.id, Move, PType]);
+format_response(bye, {Game, User}) ->
+    io_lib:format("~p (-1, ~p)", [Game#game.id, getPType(Game, User)]);
 format_response(_, _) ->
     "".
+
+getPType(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
+    p1;
+getPType(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
+    p2;
+getPType(Game=#game{p2=undefined}, _) ->
+    p2;
+getPType(Game=#game{p1=undefined}, _) ->
+    p1;
+getPType(_, _) ->
+    undefined.
 
 
 format_game_list(List) ->
     Fun = fun(G) -> format_game(G) end,
+    io:fwrite("game list ~p  ~n", [List]),
+    format_obj_list(List, Fun).
+
+format_user_list(List) ->
+    Fun = fun(U) -> format_user(U) end,
+    format_obj_list(List, Fun).
+
+format_obj_list(List, Fun) ->
     G2S = lists:map(Fun, List),  %% stringify list of games
     JG = string:join(G2S, ", "), %% join list to make a single string
     io_lib:format("[~s]", [JG]). %% wrap the list of games with []
@@ -81,7 +102,8 @@ format_game(Game) ->
     Player1 = format_user(Game#game.p1),
     Player2 = format_user(Game#game.p2),
     State = io_lib:format("~p", [Game#game.state]),
-    io_lib:format("{id=~p, p1=~s, p2=~s, state=~s}", [Id, Player1, Player2, State]).
+    Obs = io_lib:format("~s", [format_user_list(Game#game.obs)]),
+    io_lib:format("{id=~p, p1=~s, p2=~s, state=~s, obs=~s}", [Id, Player1, Player2, State, Obs]).
 
 
 format_user(undefined) ->
@@ -110,10 +132,12 @@ format(T, C = #pcommand{id=pla, cmd_id=CmdId}, Response) ->
     Upd = io_lib:format("~s ~s ~s", ["UPD", CmdId, format_response(pla, Response)]),
     {Req, Upd};
 format(T, C = #pcommand{id=obs, cmd_id=CmdId}, Response) ->
-    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+    Req = io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]),
+    {Req, ""};
 format(T, C = #pcommand{id=lea, cmd_id=CmdId}, Response) ->
-    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+    Req = io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]),
+    {Req, ""};
 format(T, C = #pcommand{id=bye}, Response) ->
-    io_lib:format("~s ~s", [format_type(T), format_response(Response)]);
+    io_lib:format("~s ~s", [format_type(T), format_response(bye, Response)]);
 format(_,_,_) ->
     "TODO".

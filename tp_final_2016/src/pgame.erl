@@ -10,11 +10,11 @@ game_loop(Games) ->
 	{From, {new, User}} ->
 	    Id = getUniqueId(),
 	    %% io:fwrite("new game in node ~p ~n", [node()]),
-	    G = #game{p1=User, id=Id, p2=undefined, state=[]},
-	    From ! {self(), ok},
+	    G = #game{p1=User, id=Id, p2=undefined, state=[], obs=[]},
+	    From ! {self(), new, ok},
 	    game_loop(maps:put(Id, G, Games));
 	{From, {add, G}} ->
-	    From ! {self(), ok},
+	    From ! {self(), add,  ok},
 	    game_loop(maps:put(G#game.id, G, Games));
 	{From, {get, GameId}} ->
 	    case getGame(GameId, Games) of
@@ -75,10 +75,10 @@ game_loop(Games) ->
 	    case getGame(GameId, Games) of
 		{value, G} ->
 		    Game = G#game{obs = [User | G#game.obs]},
-		    From ! {self(), Game},
+		    From ! {self(), watch, {ok, Game}},
 		    game_loop(updateGame(Game, Games));
 		not_found ->
-		    From ! {self(), not_found}
+		    From ! {self(), watch, {error, not_found}}
 	    end,
 	    game_loop(Games);
 	{From, {leave, User, GameId}} ->
@@ -87,17 +87,24 @@ game_loop(Games) ->
 		    Fun = fun(E) -> E#user.name == User#user.name end,
 		    Obs = lists:dropwhile(Fun, G#game.obs),
 		    Game = G#game{obs = Obs},
-		    From ! {self(), Game},
+		    From ! {self(), leave, {ok, Game}},
 		    game_loop(updateGame(Game, Games));
 		not_found ->
-		    From ! {self(), game_not_found}
+		    From ! {self(), leave, {error, game_not_found}}
 	    end,
 	    game_loop(Games);
 	{From, {bye, User}} ->
+	    {UpdatedGames, GamesWithUser} = removeUserFromGames(Games, User),
+	    RemoteGamesWithUser = removeUserFromAllRemoteGames(User),
+	    From ! {self(), bye, {ok, GamesWithUser ++ RemoteGamesWithUser}},
+	    game_loop(UpdatedGames);
+	{From, {remove_user_from_games, User}} ->
+	    io:fwrite("remove_user_from_games ~p in node ~p ~n", [User#user.name, node()]),
+	    From ! {response, remove_user_from_games, getGamesWithUser(Games, User)},
 	    Fun = fun(_, Game) -> removePlayer(Game, User) end,
-	    UpdateGames = maps:map(Fun, Games),
-	    From ! {self(), ok},
+	    UpdateGames = maps:map(Fun, Games), %% delete user from all the games.
 	    game_loop(maps:merge(Games, UpdateGames));
+	    %%game_loop(Games);
 	{From, {update_game, Game}} ->
 	    %% io:fwrite("updating ~p game in node ~p ~n", [Game, node()]),
 	    Game2 = maps:get(Game#game.id, Games, not_found),
@@ -121,7 +128,7 @@ game_loop(Games) ->
 	    %% io:fwrite("get_all_games from node ~p ~n", [node()]),
 	    RGS = getAllRemoteGames(),
 	    GS = maps:values(Games),
-	    From ! {self(), GS ++ RGS},
+	    From ! {self(), get_all_games, GS ++ RGS},
 	    game_loop(Games)
     end.
 
@@ -143,6 +150,34 @@ getRemoteGames(Node) ->
 	{response, GameList} ->  GameList
     end.
 
+getGamesWithUser(Games, User) ->
+    Fun = fun(_, Game) -> isUserInGame(Game, User) end,
+    GamesWithUser = maps:filter(Fun, Games),
+    maps:values(GamesWithUser).
+
+removeUserFromGames(Games, User) ->
+    Fun = fun(_, Game) -> isUserInGame(Game, User) end,
+    GamesWithUser = maps:filter(Fun, Games),
+    case maps:size(GamesWithUser) == 0 of %% check if current games has 
+	true -> {Games, []};
+	false ->
+	    Fun2 = fun(_, Game) -> removePlayer(Game, User) end,
+	    UpdateGames = maps:map(Fun2, GamesWithUser), %% delete user from all the games.
+	    {maps:merge(Games, UpdateGames), maps:values(UpdateGames)}
+    end.
+
+removeUserFromAllRemoteGames(User) ->
+    Servers = nodes(),
+    Fun = (fun(S) -> removeGameRemoteUser(S, User) end),
+    List = lists:map(Fun, Servers), %% list of list of games
+    %% merge de list of list
+    lists:foldl(fun(LS, Acc) -> LS ++ Acc end, [], List).
+
+removeGameRemoteUser(Node, User) ->
+    {games, Node} ! {self(), {remove_user_from_games, User}},
+    receive
+	{response, remove_user_from_games, GameList} -> GameList
+    end.
 
 
 removePlayer(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
@@ -294,19 +329,19 @@ get(Pid, Game_id) ->
 get_all(Pid) ->
     Pid ! {self(), get_all_games},
     receive
-	{Pid, Games} -> Games
+	{Pid, get_all_games, Games} -> Games
     end.
 
 add(Pid, Game) ->
     Pid ! {self(), {add, Game}},
     receive
-	{Pid, ok} -> ok
+	{Pid, add, S} -> S
     end.
 
 new(Pid, User) ->
     Pid ! {self(), {new, User}},
     receive
-	{Pid, ok} -> ok
+	{Pid, new, S} -> S
     end.
 
 join(Pid, User, GameId) ->
@@ -324,17 +359,17 @@ play(Pid, User, GameId, PlayMove) ->
 watch(Pid, User, GameId) ->
     Pid ! {self(), {watch, User, GameId}},
     receive
-	{Pid, Status} -> Status
+	{Pid, watch, Status} -> Status
     end.
 
 leave(Pid, User, GameId) ->
     Pid ! {self(), {leave, User, GameId}},
     receive
-	{Pid, Status} -> Status
+	{Pid, leave, Status} -> Status
     end.
 
 bye(Pid, User) ->
     Pid ! {self(), {bye, User}},
     receive
-	{Pid, Status} -> Status
+	{Pid, bye, Status} -> Status
     end.

@@ -70,21 +70,21 @@ psocket_loop(U = #user{socket=Sock}) ->
 	    case pcommand:parse(Message) of
 		{ok, Pcommand} -> spawn_pcommand(Sock, U, Pcommand);
 		error -> gen_tcp:send(Sock, "Invalid command")
-	    end;
+	    end,
+	    psocket_loop(U);
 	{pcommand, Message} ->
-	    %% io:format("psocket_loop is sending the response ~p ~n",[Message]),
-	    gen_tcp:send(Sock, io_lib:format("~s", [Message])); %% "Invalid command");
+	    %% io:format("psocket_loop is sending the response ~s ~n",[Message]),
+	    gen_tcp:send(Sock, io_lib:format("~s", [Message])), %% "Invalid command");
 	    %% get_tcp:send(Sock, Message);
+	    psocket_loop(U);
+	{pcommand, bye, Message} ->
+	    %% io:format("psocket_loop BYE BYE BYE  ~s ~n",[Message]),
+	    gen_tcp:send(Sock, io_lib:format("~s", [Message])),
+	    gen_tcp:close(Sock); %% don't loop, finsh process here
 	_ ->
-	    println("psocket_loop no entiende lo que recivio.")
-    after
-        1000 ->
-	    ok
-	    %% println("@@@@@@@@@@@@@@@ psocket_loop no recivio nada")
-	    %% exit(kill)
-    end,
-    psocket_loop(U).
-
+	    println("psocket_loop no entiende lo que recivio."),
+	    psocket_loop(U)
+    end. %% only reach by BYE command.
 
 isNameAvailable(List, String) -> not(lists:member(String, List)).
 
@@ -96,6 +96,7 @@ spawn_pcommand(Server, User, Cmd) ->
 pcomando(Socket, U,  Cmd=#pcommand{id=lgs}) ->
     %% io:fwrite("EXEC LSG in node ~p ~n", [node()]),
     Response = getAllGames(),
+    io:fwrite("EXEC LSG in node ~p ~p ~n", [node(), Response]),
     Res = pcommand:format(ok, Cmd, {Response}),
     U#user.pid ! {pcommand, Res};
     %% gen_tcp:send(Socket, Res);
@@ -111,9 +112,9 @@ pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
 	{ok, PType, OtherPlayer, Game} ->
 	    {Req, Upd} = pcommand:format(ok, Cmd, {PType, U, Game}),
 	    %% notify other user if exist
-	    notifyOtherPlayer(getOtherPlayer(Game, U), Upd),
+	    notifyOtherPlayer(getOtherPlayer(Game, U), Game, Upd),
 	    U#user.pid ! {pcommand, Req};
-	{T, Msg} ->
+	{_, Msg} ->
 	    {Req, _} = pcommand:format(Msg, Cmd, {}),
 	    U#user.pid ! {pcommand, Req}
     end;
@@ -123,25 +124,40 @@ pcomando(Socket, U, Cmd=#pcommand{id=pla, game_id=GameId, move=PlayMove}) ->
 	{ok, PType, Game} ->
 	    {Req, Upd} = pcommand:format(ok, Cmd, {PType, Game, PlayMove}),
 	    %% notify other user if exist
-	    notifyOtherPlayer(getOtherPlayer(Game, U), Upd),
+	    notifyOtherPlayer(getOtherPlayer(Game, U), Game, Upd),
 	    U#user.pid ! {pcommand, Req};
-	{T, Msg} ->
+	{_, Msg} ->
 	    {Req, _} = pcommand:format(Msg, Cmd, {}),
 	    %% le deberia avisar  Game#game.p1??
 	    U#user.pid ! {pcommand, Req}
     end;
 pcomando(Socket, U, Cmd=#pcommand{id=obs, game_id=GameId}) ->
     S = watchGame(U, GameId),
-    Res = pcommand:format(S, Cmd, {}),
-    U#user.pid ! {pcommand, Res};
+    case S of
+	{ok, _} -> %% 2nd argumente is Game
+	    {Req, _} = pcommand:format(ok, Cmd, {}),
+	    U#user.pid ! {pcommand, Req};
+	{_, Msg} ->
+	    {Req, _} = pcommand:format(Msg, Cmd, {}),
+	    U#user.pid ! {pcommand, Req}
+    end;
 pcomando(Socket, U, Cmd=#pcommand{id=lea, game_id=GameId}) ->
     S = leaveGame(U, GameId),
-    Res = pcommand:format(S, Cmd, {}),
-    U#user.pid ! {pcommand, Res};
+    case S of
+	{ok, _} -> %% 2nd argumente is Game
+	    {Req, _} = pcommand:format(ok, Cmd, {}),
+	    U#user.pid ! {pcommand, Req};
+	{_, Msg} ->
+	    {Req, _} = pcommand:format(Msg, Cmd, {}),
+	    U#user.pid ! {pcommand, Req}
+    end;
 pcomando(Socket, U, Cmd=#pcommand{id=bye}) ->
-    S = byeGame(U),
-    Res = pcommand:format(S, Cmd, {}),
-    U#user.pid ! {pcommand, Res};
+    io:fwrite("EXEC BYE in node ~p ~n", [node()]),
+    {ok, LSG} = byeGame(U), %% list of games updated
+    io:fwrite("bye for games ~p ~n", [LSG]),
+    Fun = fun(G) -> notifyOtherPlayer(getOtherPlayer(G, U), G, pcommand:format(ok, Cmd, {G, U})) end,
+    lists:map(Fun, LSG), %% notify all user from every game updated
+    U#user.pid ! {pcommand, bye, "OK"};
 pcomando(Socket, U, _) ->
     %% this shouldn't happen.
     U#user.pid ! {pcommand, io_lib:format("~s", ["Unsupported pcommand option"])}.
@@ -166,11 +182,13 @@ send_request(Server, Command, Arguments, Response) ->
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
 
-
-notifyOtherPlayer(undefined, Msg) ->
+notifyOtherPlayer(undefined, _, _) ->
     ok; %% do nothing if there is no other player in the game
-notifyOtherPlayer(U, Msg) ->
-     U#user.pid ! {pcommand, Msg}.
+notifyOtherPlayer(User, Game, Msg) ->
+    User#user.pid ! {pcommand, Msg},
+    %% io:fwrite("notify observers game ~p and observers ~p ~n", [Game, Game#game.obs]),
+    Fun = (fun(U) -> U#user.pid ! {pcommand, Msg} end),
+    lists:map(Fun, Game#game.obs).
 
 
 getOtherPlayer(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
@@ -192,6 +210,10 @@ addUser(User_name, Socket, Pid, Node) ->
 
 getUser(User_name) ->
     puser:get(whereis(users), User_name).
+
+removeUser(User_name) ->
+    puser:get(whereis(users), User_name).
+
 
 %% pgame
 getGame(Game_id) ->

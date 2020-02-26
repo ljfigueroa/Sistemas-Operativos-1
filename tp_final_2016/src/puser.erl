@@ -8,7 +8,11 @@ puser() ->
     user_loop(Map).
 
 user_loop(Users) ->
-    receive
+    receive	
+	{From, {remove, User}} ->
+	    NewUsers = maps:remove(User#user.name, Users),
+	    From ! {self(), remove, ok},
+	    user_loop(NewUsers);
 	%% Request to check if Name is present in current Users.
 	{From, {is_name_available, Name}} ->
 	    case maps:find(Name, Users) of
@@ -50,6 +54,13 @@ add(Pid, User_name, Socket, P, Node) ->
     receive
 	{Pid, add, user_added, User} -> {user_added_ok, User};
 	{Pid, add, user_name_in_use} -> user_name_in_use
+    end.
+
+remove(Pid, UserName) ->
+    %% should have Self = self()  to pattern match the recieve? 
+    Pid ! {self(), {remove, UserName}},
+    receive
+	{Pid , remove, Response} -> Response
     end.
 
 

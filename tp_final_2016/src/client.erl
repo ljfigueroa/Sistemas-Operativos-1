@@ -65,11 +65,13 @@ new_con_loop(Sock) ->
     receive ok -> ok end,
     receive
 	{tcp, Sock, Data} ->
-	    io:format("CLIENT receive >>>  ~p~n", [Data]),
+	    io:format("CLIENT receive >>>  ~p.~n", [Data]),
 	    self() ! ok,
 	    new_con_loop(Sock);
-	_ ->
-	    io:format("CLIENT receive >> wrong format TCP~n", []),
+	{tcp_closed, Sock} ->
+	    io:format("tcp socket ~p has been closed.~n", [Sock]);
+	R ->
+	    io:format("CLIENT receive >> wrong format TCP ~p. ~n", [R]),
 	    self() ! ok,
 	    new_con_loop(Sock)
     end,
