@@ -105,6 +105,7 @@ pcomando(Socket, U, Cmd=#pcommand{id=new}) ->
     Res = pcommand:format(ok, Cmd, {}),
     U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
+    io:fwrite("JOIN NEW in node ~p ~n", [node()]),
     %% The user joining must not be the one who created the game.
     S = joinGame(U, GameId),
     Res = pcommand:format(S, Cmd, {}),
