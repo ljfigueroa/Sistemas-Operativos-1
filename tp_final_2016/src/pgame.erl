@@ -9,7 +9,7 @@ game_loop(Games) ->
     receive
 	{From, {new, User}} ->
 	    Id = getUniqueId(),
-	    io:fwrite("new game in node ~p ~n", [node()]),
+	    %% io:fwrite("new game in node ~p ~n", [node()]),
 	    G = #game{p1=User, id=Id, p2=undefined, state=[]},
 	    From ! {self(), ok},
 	    game_loop(maps:put(Id, G, Games));
@@ -25,42 +25,50 @@ game_loop(Games) ->
 	{From, {join, User, GameId}} ->
 	    case getGame(GameId, Games) of
 		{value, G} ->
-		    io:format("node ~p joining ~p to game ~p ~n", [node(), G, User]),
-		    %% or (G#game.p2#user.name == User#user.name) of
-		    case (G#game.p1#user.name == User#user.name) of
+		    P1 = G#game.p1,
+		    P2 = G#game.p2,
+		    %% io:format("node ~p joining ~p to game ~p ~n", [node(), G, User]),
+		    case isUserInGame(G, User) of
 			true ->
-			    NG = G#game{p2=User},
-			    From ! {self(), already_joined},
-			    game_loop(maps:put(GameId, NG, Games));
+			    From ! {self(), join, {error, already_joined}},
+			    game_loop(Games);
 			false ->
-			    case G#game.p2 =/= undefined of
+			    case P1 =/= undefined andalso P2 =/= undefined of
 				true ->
-				    From ! {self(), game_full},
+				    From ! {self(), join, {error, game_full}},
 				    game_loop(Games);
 				false ->
-				    NG = G#game{p2=User},
-				    From ! {self(), ok},
-				    game_loop(updateGame(NG, Games))
+				    %% game has an empty player spot
+				    case P1 =/= undefined of
+					true -> %% p1 is occupied
+					    NG = G#game{p2=User},
+					    From ! {self(), join, {ok, p2, P1, NG}},
+					    game_loop(updateGame(NG, Games));
+					false -> %% p2 is ocupied
+					    NG = G#game{p1=User},
+					    From ! {self(), join, {ok, p1, P2, NG}},
+					    game_loop(updateGame(NG, Games))
+				    end
 			    end
 		    end;
 		not_found ->
-		    From ! {self(), not_found}
+		    From ! {self(), join, {error, game_not_found}}
 	    end,
 	    game_loop(Games);
-	%%%% PLAY
+        %%%% PLAY
 	{From, {play, User, GameId, PlayMove}} ->
-	    io:format("playing gameid ~p user ~p with play ~p ~n", [GameId, User, PlayMove]),
+	    %% io:format("playing gameid ~p user ~p with play ~p ~n", [GameId, User, PlayMove]),
 	    case getGame(GameId, Games) of
 		{value, G} ->
 		    case playMove(User, G, PlayMove) of
 			{ok, NG} ->
-			    From ! {self(), ok},
+			    From ! {self(), {ok, getPlayerType(G, User), NG}},
 			    game_loop(updateGame(NG, Games));
 			{error, Atom} ->
-			    From ! {self(), Atom}
-		     end;
+			    From ! {self(), {error, Atom}}
+		end;
 		not_found ->
-		    From ! {self(), not_found}
+		    From ! {self(), {error, game_not_found}}
 	    end,
 	    game_loop(Games);
 	{From, {watch, User, GameId}} ->
@@ -91,26 +99,26 @@ game_loop(Games) ->
 	    From ! {self(), ok},
 	    game_loop(maps:merge(Games, UpdateGames));
 	{From, {update_game, Game}} ->
-	    io:fwrite("updating ~p game in node ~p ~n", [Game, node()]),
+	    %% io:fwrite("updating ~p game in node ~p ~n", [Game, node()]),
 	    Game2 = maps:get(Game#game.id, Games, not_found),
-	    io:fwrite("Game2 =  ~p ~n", [Game2]),
+	    %% io:fwrite("Game2 =  ~p ~n", [Game2]),
 	    case maps:get(Game#game.id, Games, not_found) of
 		not_found -> game_loop(Games);
 		OldGame ->
-		    io:fwrite("update_game gameid ~p in node ~p ~n", [Game#game.id, node()]),
+		    %% io:fwrite("update_game gameid ~p in node ~p ~n", [Game#game.id, node()]),
 		    From ! {response, update_game, ok},
 		    game_loop(maps:put(Game#game.id, Game, Games))
 	    end;
 	{From, {get_current_game, GameId}} ->
-	    io:fwrite("get_current_game gameid ~p in node ~p ~n", [GameId, node()]),
+	    %% io:fwrite("get_current_game gameid ~p in node ~p ~n", [GameId, node()]),
 	    From ! {response, get_current_game, maps:get(GameId, Games, not_found)},
 	    game_loop(Games);
 	{From, {get_current_games}} ->
-	    io:fwrite("get_current_games from games in node ~p ~n", [node()]),
+	    %% io:fwrite("get_current_games from games in node ~p ~n", [node()]),
 	    From ! {response, maps:values(Games)},
 	    game_loop(Games);
 	{From, get_all_games} ->
-	    io:fwrite("get_all_games from node ~p ~n", [node()]),
+	    %% io:fwrite("get_all_games from node ~p ~n", [node()]),
 	    RGS = getAllRemoteGames(),
 	    GS = maps:values(Games),
 	    From ! {self(), GS ++ RGS},
@@ -124,12 +132,12 @@ getAllRemoteGames() ->
     Servers = nodes(),
     Fun = (fun(S) -> getRemoteGames(S) end),
     LGS = lists:map(Fun, Servers), %% list of list of games
-    io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
+    %% io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
     %% merge de list of list
     lists:foldl(fun(LS, Acc) -> LS ++ Acc end, [], LGS).
 
 getRemoteGames(Node) ->
-    io:fwrite("Retrieve game list from ~p", [Node]),
+    %% io:fwrite("Retrieve game list from ~p", [Node]),
     {games, Node} ! {self(), {get_current_games}},
     receive
 	{response, GameList} ->  GameList
@@ -228,13 +236,13 @@ getPlayerName(_) ->
 
 
 updateGame(Game, Games) ->
-    io:format("getting ~p  game ~n", [Game#game.id]),
+    %% io:format("getting ~p  game ~n", [Game#game.id]),
     case maps:get(Game#game.id, Games, not_found) of
 	not_found ->
 	    Servers = nodes(),
 	    Fun = (fun(S) -> updateRemoteGame(S, Game) end),
 	    lists:map(Fun, Servers), %% list of list of games
-	    io:fwrite("send update to all servers ~n"),
+	    %% io:fwrite("send update to all servers ~n"),
 	    %% merge de list of list
 	    Games;
 	OldGame -> %% old state of the game being updated
@@ -243,33 +251,33 @@ updateGame(Game, Games) ->
 
 
 updateRemoteGame(Node, Game) ->
-    io:fwrite("send gane update ~p ~n", [Game]),
+    %% io:fwrite("send gane update ~p ~n", [Game]),
     {games, Node} ! {self(), {update_game, Game}}.
 
 
 
 getGame(GameId, Games) ->
-    io:format("getting ~p  game ~n", [GameId]),
+    %% io:format("getting ~p  game ~n", [GameId]),
     case maps:get(GameId, Games, not_found) of
 	not_found ->
 	    Servers = nodes(),
 	    Fun = (fun(S) -> getRemoteGame(S, GameId) end),
 	    LGS = lists:map(Fun, Servers), %% list of list of games
-	    io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
+	    %% io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
 	    %% merge de list of list
 	    R = lists:foldl(fun(G, Result) -> case G =/= not_found of
 					      true -> G;
 					      false -> Result
 					  end
 			end, not_found, LGS),
-	    io:fwrite("R =  ~p ~n", [R]),
+	    %% io:fwrite("R =  ~p ~n", [R]),
 	    R;
 	Game ->
 	    {value, Game}
     end.
 
 getRemoteGame(Node, GameId) ->
-    io:fwrite("Retrieve game_ID from ~p", [Node]),
+    %% io:fwrite("Retrieve game_ID from ~p", [Node]),
     {games, Node} ! {self(), {get_current_game, GameId}},
     receive
 	{response, get_current_game, not_found} -> not_found;
@@ -304,7 +312,7 @@ new(Pid, User) ->
 join(Pid, User, GameId) ->
     Pid ! {self(), {join, User, GameId}},
     receive
-	{Pid, Status} -> Status
+	{Pid, join, Status} -> Status
     end.
 
 play(Pid, User, GameId, PlayMove) ->

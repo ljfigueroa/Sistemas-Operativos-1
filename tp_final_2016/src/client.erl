@@ -39,8 +39,7 @@ send2(Sock, Msg) ->
     ok.
 
 send(Sock, Msg) ->
-    gen_tcp:send(Sock, Msg),
-    ok.
+    gen_tcp:send(Sock, Msg).
 
 %% start server
 ss() ->

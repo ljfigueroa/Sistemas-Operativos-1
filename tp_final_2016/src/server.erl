@@ -75,7 +75,7 @@ psocket_loop(U = #user{socket=Sock}) ->
 	    %% io:format("psocket_loop is sending the response ~p ~n",[Message]),
 	    gen_tcp:send(Sock, io_lib:format("~s", [Message])); %% "Invalid command");
 	    %% get_tcp:send(Sock, Message);
-	_ -> 
+	_ ->
 	    println("psocket_loop no entiende lo que recivio.")
     after
         1000 ->
@@ -94,27 +94,42 @@ spawn_pcommand(Server, User, Cmd) ->
     spawn(Node, ?MODULE, pcomando, [Server, User, Cmd]).
 
 pcomando(Socket, U,  Cmd=#pcommand{id=lgs}) ->
-    io:fwrite("EXEC LSG in node ~p ~n", [node()]),
+    %% io:fwrite("EXEC LSG in node ~p ~n", [node()]),
     Response = getAllGames(),
     Res = pcommand:format(ok, Cmd, {Response}),
     U#user.pid ! {pcommand, Res};
     %% gen_tcp:send(Socket, Res);
 pcomando(Socket, U, Cmd=#pcommand{id=new}) ->
-    io:fwrite("EXEC NEW in node ~p ~n", [node()]),
+    %% io:fwrite("EXEC NEW in node ~p ~n", [node()]),
     ok = newGame(U),
     Res = pcommand:format(ok, Cmd, {}),
     U#user.pid ! {pcommand, Res};
 pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
-    io:fwrite("JOIN NEW in node ~p ~n", [node()]),
     %% The user joining must not be the one who created the game.
     S = joinGame(U, GameId),
-    Res = pcommand:format(S, Cmd, {}),
-    %% le deberia avisar  Game#game.p1??
-    U#user.pid ! {pcommand, Res};
+    case S of
+	{ok, PType, OtherPlayer, Game} ->
+	    {Req, Upd} = pcommand:format(ok, Cmd, {PType, U, Game}),
+	    %% notify other user if exist
+	    notifyOtherPlayer(getOtherPlayer(Game, U), Upd),
+	    U#user.pid ! {pcommand, Req};
+	{T, Msg} ->
+	    {Req, _} = pcommand:format(Msg, Cmd, {}),
+	    U#user.pid ! {pcommand, Req}
+    end;
 pcomando(Socket, U, Cmd=#pcommand{id=pla, game_id=GameId, move=PlayMove}) ->
     S = playGame(U, GameId, PlayMove),
-    Res = pcommand:format(S, Cmd, {}),
-    U#user.pid ! {pcommand, Res};
+    case S of
+	{ok, PType, Game} ->
+	    {Req, Upd} = pcommand:format(ok, Cmd, {PType, Game, PlayMove}),
+	    %% notify other user if exist
+	    notifyOtherPlayer(getOtherPlayer(Game, U), Upd),
+	    U#user.pid ! {pcommand, Req};
+	{T, Msg} ->
+	    {Req, _} = pcommand:format(Msg, Cmd, {}),
+	    %% le deberia avisar  Game#game.p1??
+	    U#user.pid ! {pcommand, Req}
+    end;
 pcomando(Socket, U, Cmd=#pcommand{id=obs, game_id=GameId}) ->
     S = watchGame(U, GameId),
     Res = pcommand:format(S, Cmd, {}),
@@ -150,6 +165,26 @@ send_request(Server, Command, Arguments, Response) ->
     Res = string:concat(Response),
     Post = string:concat(Command, Args, Res),
     gen_tcp:send(Server, Post).
+
+
+notifyOtherPlayer(undefined, Msg) ->
+    ok; %% do nothing if there is no other player in the game
+notifyOtherPlayer(U, Msg) ->
+     U#user.pid ! {pcommand, Msg}.
+
+
+getOtherPlayer(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
+    Game#game.p2;
+getOtherPlayer(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
+    Game#game.p1;
+getOtherPlayer(Game=#game{p2=undefined}, _) ->
+    Game#game.p1;
+getOtherPlayer(Game=#game{p1=undefined}, _) ->
+    Game#game.p2;
+getOtherPlayer(_, _) ->
+    undefined.
+
+
 
 %% puser
 addUser(User_name, Socket, Pid, Node) ->

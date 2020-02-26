@@ -29,7 +29,7 @@ min_aux([],    Min)                                              -> Min.
 
 
 get_server(Pbalance) ->
-    io:fwrite("Modulo pbalance y el metodo get_server(~p) ~n", [Pbalance]),
+    %% io:fwrite("Modulo pbalance y el metodo get_server(~p) ~n", [Pbalance]),
     Pbalance ! {req, self()},
     receive
         {ok, Server} -> {ok, Server}

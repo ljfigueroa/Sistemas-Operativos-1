@@ -60,7 +60,14 @@ format_type(T) ->
 
 
 format_response(lgs, {GameList})->
-    format_game_list(GameList).
+    format_game_list(GameList);
+format_response(acc, {PType, U, Game}) ->
+    io_lib:format("~p (0, ~p) ~s", [Game#game.id, PType, U#user.name]);
+format_response(pla, {PType, Game, Move}) ->
+    io_lib:format("~p (~p, ~p)", [Game#game.id, Move, PType]);
+format_response(_, _) ->
+    "".
+
 
 format_game_list(List) ->
     Fun = fun(G) -> format_game(G) end,
@@ -95,9 +102,13 @@ format(T, C = #pcommand{id=lgs, cmd_id=CmdId}, Response)->
 format(T, C = #pcommand{id=new, cmd_id=CmdId}, Response) ->
     io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
 format(T, C = #pcommand{id=acc, cmd_id=CmdId}, Response) ->
-    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+    Req = io_lib:format("~s ~s ~s", [format_type(T), CmdId, ""]),
+    Upd = io_lib:format("~s ~s ~s", ["UPD", CmdId, format_response(acc, Response)]),
+    {Req, Upd};
 format(T, C = #pcommand{id=pla, cmd_id=CmdId}, Response) ->
-    io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
+    Req = io_lib:format("~s ~s ~s", [format_type(T), CmdId, ""]),
+    Upd = io_lib:format("~s ~s ~s", ["UPD", CmdId, format_response(pla, Response)]),
+    {Req, Upd};
 format(T, C = #pcommand{id=obs, cmd_id=CmdId}, Response) ->
     io_lib:format("~s ~s ~s", [format_type(T), CmdId, format_response(Response)]);
 format(T, C = #pcommand{id=lea, cmd_id=CmdId}, Response) ->
