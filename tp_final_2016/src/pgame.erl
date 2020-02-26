@@ -55,7 +55,7 @@ game_loop(Games) ->
 		    case playMove(User, G, PlayMove) of
 			{ok, NG} ->
 			    From ! {self(), ok},
-			    game_loop(maps:put(GameId, NG, Games));
+			    game_loop(updateGame(NG, Games));
 			{error, Atom} ->
 			    From ! {self(), Atom}
 		     end;
@@ -67,7 +67,8 @@ game_loop(Games) ->
 	    case getGame(GameId, Games) of
 		{value, G} ->
 		    Game = G#game{obs = [User | G#game.obs]},
-		    From ! {self(), Game};
+		    From ! {self(), Game},
+		    game_loop(updateGame(Game, Games));
 		not_found ->
 		    From ! {self(), not_found}
 	    end,
@@ -78,7 +79,8 @@ game_loop(Games) ->
 		    Fun = fun(E) -> E#user.name == User#user.name end,
 		    Obs = lists:dropwhile(Fun, G#game.obs),
 		    Game = G#game{obs = Obs},
-		    From ! {self(), Game};
+		    From ! {self(), Game},
+		    game_loop(updateGame(Game, Games));
 		not_found ->
 		    From ! {self(), game_not_found}
 	    end,
@@ -214,7 +216,7 @@ updateGame(Game, Games) ->
 	    io:fwrite("send update to all servers ~n"),
 	    %% merge de list of list
 	    Games;
-	Game -> 
+	OldGame -> %% old state of the game being updated
 	    maps:put(Game#game.id, Game, Games)
     end.
 
