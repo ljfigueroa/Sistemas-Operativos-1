@@ -44,9 +44,9 @@ str2int(Str) ->
     erlang:list_to_integer(Str).
 
 parse_connect(RawString) ->
-    [Cmd, Name | _ ] = string:tokens(RawString, " "),
+    [Cmd | Args ] = string:tokens(RawString, " "),
     case Cmd of
-	"CON" ->  {ok, #pcommand{id=con, name=Name}};
+	"CON" -> pcommand(con, Args);
 	_  -> error
     end.
 

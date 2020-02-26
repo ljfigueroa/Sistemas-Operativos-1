@@ -78,6 +78,7 @@ psocket_loop(U = #user{socket=Sock}) ->
 	    %% get_tcp:send(Sock, Message);
 	    psocket_loop(U);
 	{pcommand, bye, Message} ->
+	    removeUser(U),
 	    %% io:format("psocket_loop BYE BYE BYE  ~s ~n",[Message]),
 	    gen_tcp:send(Sock, io_lib:format("~s", [Message])),
 	    gen_tcp:close(Sock); %% don't loop, finsh process here
@@ -152,9 +153,7 @@ pcomando(Socket, U, Cmd=#pcommand{id=lea, game_id=GameId}) ->
 	    U#user.pid ! {pcommand, Req}
     end;
 pcomando(Socket, U, Cmd=#pcommand{id=bye}) ->
-    io:fwrite("EXEC BYE in node ~p ~n", [node()]),
     {ok, LSG} = byeGame(U), %% list of games updated
-    io:fwrite("bye for games ~p ~n", [LSG]),
     Fun = fun(G) -> notifyOtherPlayer(getOtherPlayer(G, U), G, pcommand:format(ok, Cmd, {G, U})) end,
     lists:map(Fun, LSG), %% notify all user from every game updated
     U#user.pid ! {pcommand, bye, "OK"};
@@ -164,10 +163,10 @@ pcomando(Socket, U, _) ->
 
 
 pcomand_connect(Sock, {user_added_ok, User}) ->
-    gen_tcp:send(Sock, "OK USER :D"),
+    gen_tcp:send(Sock, io_lib:format("OK ~s", [User#user.name])),
     psocket_loop(User);
 pcomand_connect(Sock, user_name_in_use) ->
-    gen_tcp:send(Sock, "User name already used"),
+    gen_tcp:send(Sock, "Error User name already used"),
     self() ! ok,
     psocket(Sock);
 pcomand_connect(_, _) ->
@@ -211,8 +210,8 @@ addUser(User_name, Socket, Pid, Node) ->
 getUser(User_name) ->
     puser:get(whereis(users), User_name).
 
-removeUser(User_name) ->
-    puser:get(whereis(users), User_name).
+removeUser(User) ->
+    puser:remove(whereis(users), User).
 
 
 %% pgame

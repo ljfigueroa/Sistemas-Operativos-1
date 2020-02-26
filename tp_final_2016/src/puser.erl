@@ -11,10 +11,12 @@ user_loop(Users) ->
     receive	
 	{From, {remove, User}} ->
 	    NewUsers = maps:remove(User#user.name, Users),
+	    io:fwrite("remove user ~p from users ~p ~n", [User, Users]),
 	    From ! {self(), remove, ok},
 	    user_loop(NewUsers);
 	%% Request to check if Name is present in current Users.
 	{From, {is_name_available, Name}} ->
+	    io:fwrite("user name ~s from users ~p ~n", [Name, Users]),
 	    case maps:find(Name, Users) of
 		{ok, _} ->  From ! {response, false};
 		_       ->  From ! {response, true}
@@ -56,9 +58,9 @@ add(Pid, User_name, Socket, P, Node) ->
 	{Pid, add, user_name_in_use} -> user_name_in_use
     end.
 
-remove(Pid, UserName) ->
+remove(Pid, User) ->
     %% should have Self = self()  to pattern match the recieve? 
-    Pid ! {self(), {remove, UserName}},
+    Pid ! {self(), {remove, User}},
     receive
 	{Pid , remove, Response} -> Response
     end.
