@@ -127,7 +127,7 @@ getAllRemoteGames() ->
     io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
     %% merge de list of list
     lists:foldl(fun(LS, Acc) -> LS ++ Acc end, [], LGS).
-    
+
 getRemoteGames(Node) ->
     io:fwrite("Retrieve game list from ~p", [Node]),
     {games, Node} ! {self(), {get_current_games}},
@@ -150,6 +150,9 @@ getPlayerType(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
     p2;
 getPlayerType(Game, _) ->
     undefined.
+
+isUserInGame(Game, User) ->
+    getPlayerType(Game, User) =/= undefined.
 
 
 isUserTurnAux(_, [])->
@@ -183,12 +186,30 @@ validPlayMove(Game, User, PlayMove) ->
 	false -> {error, is_not_user_turn}
     end.
 
-playMove(User, Game, PlayMove) ->
-    State =  Game#game.state,
-    case validPlayMove(Game, User, PlayMove) of
-	true -> {ok, Game#game{state=[{getPlayerType(Game, User), PlayMove} | State]}};
-	{error, Msg} -> {error, Msg}
-   end.
+
+%% PlayMove < 0 User leave game
+%% PlayMove = 0 User accepts game
+%% 0 < PlayMove < 10 User make a move
+%% PlayMove > 9 User makes an invalid move
+playMove(User, Game, PlayMove) when PlayMove < 0 ->
+    case isUserInGame(Game,User) of
+	true  -> {ok, removePlayer(Game, User)};
+	false -> {error, user_is_not_in_game}
+    end;
+playMove(_, _, PlayMove) when PlayMove == 0 ->
+    {error, can_not_join_use_instead_ACC_command};
+playMove(User, Game, PlayMove) when PlayMove > 0 andalso PlayMove < 10 ->
+    case isUserInGame(Game,User) of
+	false -> {error, user_is_not_in_game} ;
+        true ->
+	    State =  Game#game.state,
+	    case validPlayMove(Game, User, PlayMove) of
+		true -> {ok, Game#game{state=[{getPlayerType(Game, User), PlayMove} | State]}};
+		{error, Msg} -> {error, Msg}
+	    end
+    end;
+playMove(_, _, _) ->
+    {error, available_moves_are_from_1_to_9}.
 
 userIn(User, Game) ->
     Fun = fun(Name) -> Name == User#user.name end,
@@ -224,7 +245,7 @@ updateGame(Game, Games) ->
 updateRemoteGame(Node, Game) ->
     io:fwrite("send gane update ~p ~n", [Game]),
     {games, Node} ! {self(), {update_game, Game}}.
-    
+
 
 
 getGame(GameId, Games) ->
@@ -243,7 +264,7 @@ getGame(GameId, Games) ->
 			end, not_found, LGS),
 	    io:fwrite("R =  ~p ~n", [R]),
 	    R;
-	Game -> 
+	Game ->
 	    {value, Game}
     end.
 
