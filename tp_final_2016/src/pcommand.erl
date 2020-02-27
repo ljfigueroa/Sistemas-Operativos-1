@@ -84,7 +84,6 @@ getPType(_, _) ->
 
 format_game_list(List) ->
     Fun = fun(G) -> format_game(G) end,
-    io:fwrite("game list ~p  ~n", [List]),
     format_obj_list(List, Fun).
 
 format_user_list(List) ->

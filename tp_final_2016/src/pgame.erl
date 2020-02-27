@@ -106,9 +106,6 @@ game_loop(Games) ->
 	    game_loop(maps:merge(Games, UpdateGames));
 	    %%game_loop(Games);
 	{From, {update_game, Game}} ->
-	    %% io:fwrite("updating ~p game in node ~p ~n", [Game, node()]),
-	    Game2 = maps:get(Game#game.id, Games, not_found),
-	    %% io:fwrite("Game2 =  ~p ~n", [Game2]),
 	    case maps:get(Game#game.id, Games, not_found) of
 		not_found -> game_loop(Games);
 		OldGame ->
@@ -117,15 +114,12 @@ game_loop(Games) ->
 		    game_loop(maps:put(Game#game.id, Game, Games))
 	    end;
 	{From, {get_current_game, GameId}} ->
-	    %% io:fwrite("get_current_game gameid ~p in node ~p ~n", [GameId, node()]),
 	    From ! {response, get_current_game, maps:get(GameId, Games, not_found)},
 	    game_loop(Games);
 	{From, {get_current_games}} ->
-	    %% io:fwrite("get_current_games from games in node ~p ~n", [node()]),
 	    From ! {response, maps:values(Games)},
 	    game_loop(Games);
 	{From, get_all_games} ->
-	    %% io:fwrite("get_all_games from node ~p ~n", [node()]),
 	    RGS = getAllRemoteGames(),
 	    GS = maps:values(Games),
 	    From ! {self(), get_all_games, GS ++ RGS},
@@ -135,26 +129,28 @@ game_loop(Games) ->
 getUniqueId() ->
     random:uniform(1000).
 
+%%% @doc Retrieve a list of all games from a remote node/server.
 getAllRemoteGames() ->
     Servers = nodes(),
     Fun = (fun(S) -> getRemoteGames(S) end),
     LGS = lists:map(Fun, Servers), %% list of list of games
-    %% io:fwrite("list of games retrieved from all the servers ~p ~n", [LGS]),
     %% merge de list of list
     lists:foldl(fun(LS, Acc) -> LS ++ Acc end, [], LGS).
 
 getRemoteGames(Node) ->
-    %% io:fwrite("Retrieve game list from ~p", [Node]),
     {games, Node} ! {self(), {get_current_games}},
     receive
 	{response, GameList} ->  GameList
     end.
 
+%%% @doc Return the games where User is a player.
 getGamesWithUser(Games, User) ->
     Fun = fun(_, Game) -> isUserInGame(Game, User) end,
     GamesWithUser = maps:filter(Fun, Games),
     maps:values(GamesWithUser).
 
+%%% @doc Remove the user from all games. Return the {A, B} where A is games updated without User,
+%%%      and B a list of all the games where User appeared.
 removeUserFromGames(Games, User) ->
     Fun = fun(_, Game) -> isUserInGame(Game, User) end,
     GamesWithUser = maps:filter(Fun, Games),
@@ -166,6 +162,8 @@ removeUserFromGames(Games, User) ->
 	    {maps:merge(Games, UpdateGames), maps:values(UpdateGames)}
     end.
 
+%%% @doc Ask remote servers/nodes to remve User from all Games. Return a list of games from
+%%%      where the user was removed.
 removeUserFromAllRemoteGames(User) ->
     Servers = nodes(),
     Fun = (fun(S) -> removeGameRemoteUser(S, User) end),
@@ -180,6 +178,8 @@ removeGameRemoteUser(Node, User) ->
     end.
 
 
+%%% @doc Unset a player from a game, and return the updated game. If the User isn't a player
+%%%      return the original Game. 
 removePlayer(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
     Game#game{p1 = undefined};
 removePlayer(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
@@ -187,6 +187,9 @@ removePlayer(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
 removePlayer(Game, _) ->
     Game.
 
+
+%%% @doc Return the player type. There can only be p1 or p2, unless user isn't a player and
+%%%      in that case return undefined
 getPlayerType(Game=#game{p1=#user{name = Name}}, User=#user{name=Name}) ->
     p1;
 getPlayerType(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
@@ -194,6 +197,8 @@ getPlayerType(Game=#game{p2=#user{name = Name}}, User=#user{name=Name}) ->
 getPlayerType(Game, _) ->
     undefined.
 
+
+%%% @doc Return true if User a player in Game. Otherwise return false.
 isUserInGame(Game, User) ->
     getPlayerType(Game, User) =/= undefined.
 
@@ -277,8 +282,6 @@ updateGame(Game, Games) ->
 	    Servers = nodes(),
 	    Fun = (fun(S) -> updateRemoteGame(S, Game) end),
 	    lists:map(Fun, Servers), %% list of list of games
-	    %% io:fwrite("send update to all servers ~n"),
-	    %% merge de list of list
 	    Games;
 	OldGame -> %% old state of the game being updated
 	    maps:put(Game#game.id, Game, Games)
@@ -286,11 +289,10 @@ updateGame(Game, Games) ->
 
 
 updateRemoteGame(Node, Game) ->
-    %% io:fwrite("send gane update ~p ~n", [Game]),
     {games, Node} ! {self(), {update_game, Game}}.
 
 
-
+%%% @doc Search for the GameId in the current Games map or in every other node/server connected.
 getGame(GameId, Games) ->
     %% io:format("getting ~p  game ~n", [GameId]),
     case maps:get(GameId, Games, not_found) of
@@ -311,14 +313,18 @@ getGame(GameId, Games) ->
 	    {value, Game}
     end.
 
+%%% @doc Careful! this method generates a deadlock if not used properly. Ask for a game and wait
+%%%      until there is a response.
 getRemoteGame(Node, GameId) ->
-    %% io:fwrite("Retrieve game_ID from ~p", [Node]),
     {games, Node} ! {self(), {get_current_game, GameId}},
     receive
 	{response, get_current_game, not_found} -> not_found;
 	{response, get_current_game, Game} -> {value, Game}
     end.
 
+
+
+%%%%%%%%%%%%% API offered to server.erl to query and manipulate all games. %%%%%%%%%%%%%
 get(Pid, Game_id) ->
     Pid ! {self(), {get, Game_id}},
     receive

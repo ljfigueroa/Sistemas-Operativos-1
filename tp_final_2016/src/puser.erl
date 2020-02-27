@@ -3,15 +3,14 @@
 -compile(export_all).
 
 puser() ->
-    Map = #{"Laura" => not_in_game},
-    %% Map = #{},
+    %%Map = #{"Laura" => not_in_game},
+    Map = #{},
     user_loop(Map).
 
 user_loop(Users) ->
     receive	
 	{From, {remove, User}} ->
 	    NewUsers = maps:remove(User#user.name, Users),
-	    io:fwrite("remove user ~p from users ~p ~n", [User, Users]),
 	    From ! {self(), remove, ok},
 	    user_loop(NewUsers);
 	%% Request to check if Name is present in current Users.
@@ -84,4 +83,8 @@ askForName(Node, Name) ->
     {users, Node} ! {self(), {is_name_available, Name}},
     receive
 	{response, Boolean} ->  Boolean
+    after
+	%% VERY IMPORTANT because not always the user service is initialized in every node,
+	%% to avoid a deadlock after 1 second return true assuming the Node has no users yet.
+	1000 -> true
     end.

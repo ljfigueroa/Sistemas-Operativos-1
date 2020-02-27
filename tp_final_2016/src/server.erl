@@ -42,7 +42,7 @@ loop_dispatcher(ListenSock) ->
     Pid ! ok,
     loop_dispatcher(ListenSock).
 
-%%% @doc
+%%% @doc Proces request for CON from the client
 psocket(Sock) ->
     receive ok -> ok end,
     receive
@@ -63,8 +63,23 @@ psocket(Sock) ->
 	     psocket(Sock)
     end.
 
+create_user(Name, Socket, Pid) ->
+    addUser(Name, Socket, Pid,  node()).
+
+%%% @doc Check if the CON command is ok and goto psocket_loop, otherwise goto psocket.
+pcomand_connect(Sock, {user_added_ok, User}) ->
+    gen_tcp:send(Sock, io_lib:format("OK ~s", [User#user.name])),
+    psocket_loop(User);
+pcomand_connect(Sock, user_name_in_use) ->
+    gen_tcp:send(Sock, "Error User name already used"),
+    self() ! ok,
+    psocket(Sock);
+pcomand_connect(_, _) ->
+    io:format("pcomand_connect with wrong arguments~n").
+
+
+%%% @doc Process the PCommand form the client and the UPD from the other servers.
 psocket_loop(U = #user{socket=Sock}) ->
-    %% io:fwrite("psocket_loop ~n"),
     receive
         {tcp, Sock, Message} ->
 	    case pcommand:parse(Message) of
@@ -87,22 +102,21 @@ psocket_loop(U = #user{socket=Sock}) ->
 	    psocket_loop(U)
     end. %% only reach by BYE command.
 
-isNameAvailable(List, String) -> not(lists:member(String, List)).
 
+%%% @doc Spawn a pcommand in the given Server/Node by the balance_service.
+%%%      All the messages are send to psocket_loop as {response, Msg}.
 spawn_pcommand(Server, User, Cmd) ->
     %% io:format("NEW PCOMAND\n"),
     {ok, Node} = balance_service:get_server(pbalance),
     spawn(Node, ?MODULE, pcomando, [Server, User, Cmd]).
 
+%%% @doc Process each PCommand in a guard.
 pcomando(Socket, U,  Cmd=#pcommand{id=lgs}) ->
-    %% io:fwrite("EXEC LSG in node ~p ~n", [node()]),
     Response = getAllGames(),
-    io:fwrite("EXEC LSG in node ~p ~p ~n", [node(), Response]),
     Res = pcommand:format(ok, Cmd, {Response}),
     U#user.pid ! {pcommand, Res};
     %% gen_tcp:send(Socket, Res);
 pcomando(Socket, U, Cmd=#pcommand{id=new}) ->
-    %% io:fwrite("EXEC NEW in node ~p ~n", [node()]),
     ok = newGame(U),
     Res = pcommand:format(ok, Cmd, {}),
     U#user.pid ! {pcommand, Res};
@@ -122,7 +136,7 @@ pcomando(Socket, U, Cmd=#pcommand{id=acc, game_id=GameId}) ->
 pcomando(Socket, U, Cmd=#pcommand{id=pla, game_id=GameId, move=PlayMove}) ->
     S = playGame(U, GameId, PlayMove),
     case S of
-	{ok, PType, Game} ->
+	{ok, PType, Game} -> %% PType == p1 or PType == p2 (player type)
 	    {Req, Upd} = pcommand:format(ok, Cmd, {PType, Game, PlayMove}),
 	    %% notify other user if exist
 	    notifyOtherPlayer(getOtherPlayer(Game, U), Game, Upd),
@@ -156,36 +170,17 @@ pcomando(Socket, U, Cmd=#pcommand{id=bye}) ->
     {ok, LSG} = byeGame(U), %% list of games updated
     Fun = fun(G) -> notifyOtherPlayer(getOtherPlayer(G, U), G, pcommand:format(ok, Cmd, {G, U})) end,
     lists:map(Fun, LSG), %% notify all user from every game updated
-    U#user.pid ! {pcommand, bye, "OK"};
+    U#user.pid ! {pcommand, bye, "OK BYE"};
 pcomando(Socket, U, _) ->
     %% this shouldn't happen.
     U#user.pid ! {pcommand, io_lib:format("~s", ["Unsupported pcommand option"])}.
 
 
-pcomand_connect(Sock, {user_added_ok, User}) ->
-    gen_tcp:send(Sock, io_lib:format("OK ~s", [User#user.name])),
-    psocket_loop(User);
-pcomand_connect(Sock, user_name_in_use) ->
-    gen_tcp:send(Sock, "Error User name already used"),
-    self() ! ok,
-    psocket(Sock);
-pcomand_connect(_, _) ->
-    io:format("pcomand_connect with wrong arguments~n").
-
-create_user(Name, Socket, Pid) ->
-    addUser(Name, Socket, Pid,  node()).
-
-send_request(Server, Command, Arguments, Response) ->
-    Args = string:concat(Arguments),
-    Res = string:concat(Response),
-    Post = string:concat(Command, Args, Res),
-    gen_tcp:send(Server, Post).
-
+%%% @doc Notify the User and Game's observers the Msg.
 notifyOtherPlayer(undefined, _, _) ->
     ok; %% do nothing if there is no other player in the game
 notifyOtherPlayer(User, Game, Msg) ->
     User#user.pid ! {pcommand, Msg},
-    %% io:fwrite("notify observers game ~p and observers ~p ~n", [Game, Game#game.obs]),
     Fun = (fun(U) -> U#user.pid ! {pcommand, Msg} end),
     lists:map(Fun, Game#game.obs).
 
